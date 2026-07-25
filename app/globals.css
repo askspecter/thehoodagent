@@ -2557,3 +2557,60 @@ code, .field-type {
     gap: 6px;
   }
 }
+
+/* ============================================================================
+ * Mobile: fill the viewport. The window used to stop mid-screen and leave a
+ * black void below. Now the shell fills the height and the terminal screen
+ * grows into the slack, so nothing is left empty.
+ * ==========================================================================*/
+@media (max-width: 560px) {
+  .desktop {
+    min-height: 100vh;
+    min-height: 100dvh;
+    display: flex;
+    flex-direction: column;
+    padding: 8px 6px 10px;
+  }
+  .shell {
+    flex: 1 1 auto;
+    display: flex;
+    flex-direction: column;
+    min-height: 0;
+    margin: 0 auto;
+  }
+  /* On the terminal view the console box absorbs the slack. */
+  .term-console {
+    flex: 1 1 auto;
+    display: flex;
+    flex-direction: column;
+    min-height: 0;
+  }
+  .term-screen {
+    flex: 1 1 auto;
+    min-height: 18vh !important;
+  }
+  /* On every view the status bar is pinned to the window's bottom edge, so any
+     remaining space sits inside the window rather than as a void beneath it. */
+  .disclaimer,
+  footer.disclaimer {
+    margin-top: auto;
+  }
+}
+
+/* Their layout has no .desktop wrapper — .shell is a direct child of <body>.
+ * Make body the flex column so the shell actually fills the viewport height. */
+@media (max-width: 560px) {
+  body {
+    min-height: 100vh;
+    min-height: 100dvh;
+    display: flex;
+    flex-direction: column;
+  }
+  .shell {
+    flex: 1 1 auto;
+    display: flex;
+    flex-direction: column;
+    min-height: 0;
+    margin: 8px auto;
+  }
+}
