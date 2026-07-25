@@ -55,7 +55,7 @@ function TokenLogo({ launch }) {
   return <div className="tok-logo tok-logo-fallback">{letter}</div>;
 }
 
-function LaunchCard({ launch, rank, explorer, onAudit }) {
+function LaunchCard({ launch, rank, explorer, onAudit, onTrade }) {
   const grad = launch.graduated;
   const progress = launch.graduationProgress;
 
@@ -122,38 +122,38 @@ function LaunchCard({ launch, rank, explorer, onAudit }) {
       </div>
 
       <div className="tok-actions">
-        {/* Audit works right now, in this app. */}
-        <button className="btn btn-primary tok-btn" onClick={() => onAudit(launch.token)}>
+        <button className="btn btn-primary tok-btn" onClick={() => onTrade(launch.token)}>
+          Trade
+        </button>
+        <button className="btn tok-btn" onClick={() => onAudit(launch.token)}>
           Audit
         </button>
-        {/* Trading is not wired up here yet, so this hands off to pons rather
-            than pretending to be a trade button that does nothing. */}
-        <a
-          className="btn tok-btn"
-          href={`https://www.ponsfamily.com/launchpad`}
-          target="_blank"
-          rel="noopener noreferrer"
-        >
-          Trade on pons ↗
-        </a>
       </div>
     </div>
   );
 }
 
-export default function LaunchFeed({ network, onAudit }) {
+export default function LaunchFeed({ network, onAudit, onTrade, nonce }) {
   const [data, setData] = useState(null);
+  const [ours, setOurs] = useState(null);
   const [error, setError] = useState(null);
   const [loading, setLoading] = useState(true);
+  /** "ours" = launched through this site; "all" = everything the factory made. */
+  const [scope, setScope] = useState("ours");
 
   const load = useCallback(async () => {
     setLoading(true);
     setError(null);
     try {
-      const res = await fetch(`/api/launches?network=${encodeURIComponent(network)}&limit=12`);
-      const json = await res.json();
-      if (!res.ok) setError(json.hint ? `${json.error} ${json.hint}` : json.error);
+      const [feedRes, ourRes] = await Promise.all([
+        fetch(`/api/launches?network=${encodeURIComponent(network)}&limit=12`),
+        fetch("/api/registry"),
+      ]);
+      const json = await feedRes.json();
+      if (!feedRes.ok) setError(json.hint ? `${json.error} ${json.hint}` : json.error);
       else setData(json);
+
+      if (ourRes.ok) setOurs(await ourRes.json());
     } catch {
       setError("Could not reach the launch feed.");
     } finally {
@@ -163,10 +163,17 @@ export default function LaunchFeed({ network, onAudit }) {
 
   useEffect(() => {
     load();
-  }, [load]);
+  }, [load, nonce]);
 
   const stats = data?.stats;
-  const launches = data?.launches || [];
+  const allLaunches = data?.launches || [];
+
+  // Tokens launched through this site, matched against the on-chain feed.
+  const ourSet = new Set((ours?.tokens || []).map((t) => t.toLowerCase()));
+  const launches =
+    scope === "ours"
+      ? allLaunches.filter((l) => ourSet.has(l.token.toLowerCase()))
+      : allLaunches;
   const graduated = launches.filter((l) => l.graduated === true);
   const trading = launches.filter((l) => l.graduated !== true);
 
@@ -212,10 +219,50 @@ export default function LaunchFeed({ network, onAudit }) {
         </div>
       )}
 
+      <div className="side-toggle">
+        {[
+          ["ours", `Launched here${ourSet.size ? ` · ${ourSet.size}` : ""}`],
+          ["all", "All pons launches"],
+        ].map(([key, label]) => (
+          <button
+            key={key}
+            className={`nav-tab ${scope === key ? "nav-on" : ""}`}
+            onClick={() => setScope(key)}
+          >
+            {label}
+          </button>
+        ))}
+        <span className="nav-spacer" />
+        <button className="btn btn-ghost" onClick={load} disabled={loading}>
+          ↻ Refresh
+        </button>
+      </div>
+
       {loading && (
         <div className="alert">
           <span className="spinner" />
           <span>Reading TokenLaunched events from the factory…</span>
+        </div>
+      )}
+
+      {!loading && scope === "ours" && launches.length === 0 && (
+        <div className="alert">
+          <span className="alert-icon">·</span>
+          <span>
+            <strong>Nothing launched here yet.</strong> Use the <b>Launch</b> tab to deploy the
+            first one — it will appear here and on ponsfamily.com at the same time. Or switch to{" "}
+            <button className="link-btn" onClick={() => setScope("all")}>
+              all pons launches
+            </button>{" "}
+            to browse everything the factory has made.
+          </span>
+        </div>
+      )}
+
+      {ours?.warning && scope === "ours" && (
+        <div className="alert alert-warn">
+          <span className="alert-icon">▲</span>
+          <span>{ours.warning}</span>
         </div>
       )}
 
@@ -254,6 +301,7 @@ export default function LaunchFeed({ network, onAudit }) {
                 rank={i + 1}
                 explorer={data.explorer}
                 onAudit={onAudit}
+                onTrade={onTrade}
               />
             ))}
           </div>
@@ -271,6 +319,7 @@ export default function LaunchFeed({ network, onAudit }) {
                 rank={graduated.length + i + 1}
                 explorer={data.explorer}
                 onAudit={onAudit}
+                onTrade={onTrade}
               />
             ))}
           </div>

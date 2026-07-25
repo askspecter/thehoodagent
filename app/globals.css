@@ -483,6 +483,105 @@ body::after {
   color: var(--text-muted);
 }
 
+/* ---------- Forms: launch + trade ---------- */
+
+.fields {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(240px, 1fr));
+  gap: 13px;
+  margin-top: 15px;
+}
+
+.field {
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+}
+
+/*
+ * `.input` carries `flex: 1 1 320px` so it can grow inside the audit row. In a
+ * COLUMN flex container that 320px basis becomes the field's HEIGHT, which made
+ * every launch input absurdly tall. Reset it for stacked fields.
+ */
+.field .input {
+  flex: 0 0 auto;
+  width: 100%;
+}
+
+.field-label {
+  font-family: var(--font-mono);
+  font-size: 10px;
+  font-weight: 700;
+  letter-spacing: 0.09em;
+  text-transform: uppercase;
+  color: var(--text-muted);
+  display: flex;
+  align-items: center;
+  gap: 8px;
+}
+
+.field-type {
+  font-size: 9px;
+  color: #6c6a65;
+  letter-spacing: 0;
+  text-transform: none;
+}
+
+textarea.input {
+  resize: vertical;
+  font-family: var(--font-sans);
+  line-height: 1.5;
+}
+
+.wallet-cta {
+  display: flex;
+  align-items: center;
+  gap: 14px;
+  flex-wrap: wrap;
+}
+
+.wallet-row {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  margin-top: 0;
+  margin-bottom: 4px;
+}
+
+.side-toggle {
+  display: flex;
+  align-items: center;
+  gap: 4px;
+  margin: 16px 0 4px;
+  flex-wrap: wrap;
+}
+
+.slip-row {
+  display: flex;
+  align-items: center;
+  gap: 7px;
+  margin-top: 14px;
+  flex-wrap: wrap;
+}
+
+.launch-foot {
+  display: flex;
+  align-items: center;
+  gap: 13px;
+  margin-top: 18px;
+  flex-wrap: wrap;
+}
+
+.launch-foot .form-note {
+  margin-top: 0;
+}
+
+/* A minimum-received figure is a floor, not a headline — keep it quieter. */
+.stat-min {
+  font-size: 16px;
+  color: var(--text-secondary);
+}
+
 /* ---------- Steps ---------- */
 
 .steps {

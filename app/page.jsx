@@ -2,6 +2,8 @@
 
 import { useCallback, useEffect, useState } from "react";
 import LaunchFeed from "./LaunchFeed";
+import LaunchForm from "./LaunchForm";
+import TradePanel from "./TradePanel";
 
 /**
  * Severity presentation. Each entry pairs a color with an ICON and a TEXT LABEL,
@@ -94,18 +96,18 @@ const CAPS = [
   },
   {
     title: "Trade from the terminal",
-    live: false,
-    body: "Buy and sell through the pons router, signed in your own wallet in your browser. Not wired up yet — it needs a wallet connection, and no key should ever reach the server.",
+    live: true,
+    body: "Buy and sell through the pons router against the token's own locked WETH pool. Quoted first, simulated second, signed in your own wallet — this site never holds your funds.",
   },
   {
     title: "Commands from X",
     live: false,
-    body: "Mention the bot in a post and have it act. Not built: it requires a wallet the server can sign with unattended, which is the single biggest security decision in a product like this.",
+    body: "Mention the bot in a post and have it act. Still to build: it needs a wallet the server can sign with while you are away, so the custody model has to be chosen first.",
   },
   {
     title: "Launch a token",
-    live: false,
-    body: "Deploy through the pons factory — fixed 1B supply, WETH pool and locked liquidity in one transaction. Not built: the launch fee and the signature must come from your wallet, never from here.",
+    live: true,
+    body: "Deploy through the pons factory — fixed 1B supply, WETH pool and locked liquidity in one transaction. The form is built from the factory's own verified ABI, so nothing about the call is guessed.",
   },
 ];
 
@@ -133,6 +135,8 @@ export default function Home() {
   const [loadingSession, setLoadingSession] = useState(true);
 
   const [view, setView] = useState("launches");
+  const [tradeToken, setTradeToken] = useState("");
+  const [feedNonce, setFeedNonce] = useState(0);
   const [address, setAddress] = useState("");
   const [network, setNetwork] = useState("robinhood");
   const [busy, setBusy] = useState(false);
@@ -205,6 +209,13 @@ export default function Home() {
     [runAudit]
   );
 
+  /** Trade a token straight from its card. */
+  const tradeFromFeed = useCallback((tokenAddress) => {
+    setTradeToken(tokenAddress);
+    setView("trade");
+    window.scrollTo({ top: 0, behavior: "smooth" });
+  }, []);
+
   const logout = useCallback(async () => {
     await fetch("/api/auth/logout", { method: "POST" });
     setUser(null);
@@ -249,17 +260,21 @@ export default function Home() {
                 Sign out
               </button>
             </div>
-          ) : authConfigured ? (
+          ) : (
+            /* Always rendered. Hiding it when credentials are absent made the
+               site look like it had no sign-in at all; if X is not configured
+               the route returns a clear setup error instead. */
             <a className="btn btn-x" href="/api/auth/x/login">
               <XLogo /> Sign in with X
             </a>
-          ) : null /* X credentials absent — audits still work, so show nothing
-                      rather than a "not configured" notice that reads as broken. */}
+          )}
         </header>
 
         <nav className="nav">
           {[
             ["launches", "Launches"],
+            ["launch", "Launch"],
+            ["trade", "Trade"],
             ["audit", "Audit"],
           ].map(([key, label]) => (
             <button
@@ -271,18 +286,28 @@ export default function Home() {
               {label}
             </button>
           ))}
-          <span className="nav-spacer" />
-          <a
-            className="nav-tab nav-ext"
-            href="https://www.ponsfamily.com/launchpad/create"
-            target="_blank"
-            rel="noopener noreferrer"
-          >
-            Create on pons ↗
-          </a>
         </nav>
 
-        {view === "launches" && <LaunchFeed network={network} onAudit={auditFromFeed} />}
+        {view === "launches" && (
+          <LaunchFeed
+            network={network}
+            onAudit={auditFromFeed}
+            onTrade={tradeFromFeed}
+            nonce={feedNonce}
+          />
+        )}
+
+        {view === "launch" && (
+          <LaunchForm
+            network={network}
+            onLaunched={() => {
+              setFeedNonce((n) => n + 1);
+              setView("launches");
+            }}
+          />
+        )}
+
+        {view === "trade" && <TradePanel network={network} token={tradeToken} />}
 
         {view === "audit" && (
         <>
