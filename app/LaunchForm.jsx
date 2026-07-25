@@ -44,6 +44,21 @@ const FIELD_HINTS = [
   { match: /farcaster/i, hidden: true },
   { match: /(feewallet|feerecipient|feeto|payout|creator)/i, hidden: true, fillWithAccount: true },
   { match: /(initialbuy|devbuy|firstbuy|buyamount)/i, label: "Your first buy (ETH)", placeholder: "0", isEth: true },
+
+  /*
+   * Protocol plumbing, not decisions. Asking someone launching a memecoin to
+   * supply a `bytes32` is not a question they can answer, and every one of these
+   * has exactly one right value:
+   *
+   *   launchConfigId / dexId — 0 selects the factory's default configuration and
+   *     its default DEX, which is the only pons launch route this app supports.
+   *   salt — the CREATE2 salt. It must be UNIQUE, not zero: reusing a salt
+   *     derives an address that already has code and the deployment reverts. So
+   *     it is generated fresh per form rather than defaulted.
+   */
+  { match: /^(launchconfigid|configid|launchconfig)$/i, hidden: true },
+  { match: /^(dexid|dex)$/i, hidden: true },
+  { match: /^salt$/i, hidden: true, fillWithSalt: true },
 ];
 
 function hintFor(field) {
@@ -56,13 +71,37 @@ function hintFor(field) {
   );
 }
 
-/** Default value for a field type, so unfilled arguments still encode. */
+/**
+ * Default value for a field type, so unfilled arguments still encode.
+ *
+ * The bytes cases are not decoration. `bytes32` used to fall through to `""`,
+ * which ethers rejects as an invalid BytesLike — so an empty `salt` did not
+ * quietly encode as zero, it threw and the launch could not be submitted at all.
+ */
 function emptyFor(type) {
   if (type === "address") return "0x0000000000000000000000000000000000000000";
   if (/^u?int/.test(type)) return "0";
   if (type === "bool") return false;
   if (type.endsWith("[]")) return [];
+
+  const fixedBytes = type.match(/^bytes(\d+)$/);
+  if (fixedBytes) return "0x" + "00".repeat(Number(fixedBytes[1]));
+  if (type === "bytes") return "0x";
+
   return "";
+}
+
+/**
+ * A fresh CREATE2 salt.
+ *
+ * Unique per launch on purpose: a repeated salt derives an address that already
+ * holds code, and the factory reverts. `crypto.getRandomValues` is the browser's
+ * CSPRNG — `Math.random` would eventually collide.
+ */
+function randomSalt() {
+  const bytes = new Uint8Array(32);
+  crypto.getRandomValues(bytes);
+  return "0x" + Array.from(bytes, (b) => b.toString(16).padStart(2, "0")).join("");
 }
 
 /** Rebuild the nested argument structure the ABI expects from a flat value map. */
@@ -163,6 +202,9 @@ export default function LaunchForm({ network, onLaunched, prefill = null }) {
         const key = field.path.join(".");
         if (hint.fillWithAccount && payout) next[key] = payout;
         if (hint.isEth) next[`${key}__isEth`] = true;
+        // Generated once and kept: re-rolling on every render would change the
+        // address between the simulation and the transaction.
+        if (hint.fillWithSalt && !next[key]) next[key] = randomSalt();
       }
       return next;
     });
@@ -302,10 +344,21 @@ export default function LaunchForm({ network, onLaunched, prefill = null }) {
       </section>
 
       <div className="console">
+        {/* The raw ABI signature used to be the headline here. It is a fact about
+            the call, not a thing anyone reads while naming a token — it moved to
+            the technical details at the foot of the form. */}
         <div className="console-bar">
           <span className="live-dot" />
           FACTORY{" "}
-          {meta?.chosen ? `· ${meta.chosen.signature}` : loading ? "· discovering ABI…" : "· unavailable"}
+          {meta?.factory ? (
+            <>
+              · <span className="bar-mono">{shortAddress(meta.factory)}</span>
+            </>
+          ) : loading ? (
+            "· reading the ABI…"
+          ) : (
+            "· unavailable"
+          )}
         </div>
         <div className="console-body">
           {loading && (
@@ -483,13 +536,35 @@ export default function LaunchForm({ network, onLaunched, prefill = null }) {
                 </div>
               )}
 
-              {meta.candidates?.length > 1 && (
+              {/* Folded away, not dropped. Which function this form will call is
+                  a real safety property — it just does not belong above the
+                  fields someone is filling in. */}
+              <details className="tech">
+                <summary>Technical details</summary>
+                <dl className="tech-list">
+                  <dt>Factory</dt>
+                  <dd>{meta.factory}</dd>
+                  <dt>Function</dt>
+                  <dd>
+                    <code>{meta.chosen.signature}</code>
+                  </dd>
+                  <dt>Selector</dt>
+                  <dd>{meta.chosen.selector}</dd>
+                  {meta.candidates?.length > 1 && (
+                    <>
+                      <dt>Other candidates</dt>
+                      <dd>{meta.candidates.slice(1).map((c) => c.signature).join(", ")}</dd>
+                    </>
+                  )}
+                </dl>
                 <p className="form-note">
-                  Using <code>{meta.chosen.signature}</code> — the richest launch-shaped function
-                  in the factory ABI. Other candidates found:{" "}
-                  {meta.candidates.slice(1).map((c) => c.signature).join(", ")}.
+                  The form is built from the factory’s own verified ABI, so nothing about the
+                  call is hardcoded. <code>launchConfigId</code>, <code>dexId</code> and{" "}
+                  <code>salt</code> are filled automatically — the first two select the
+                  factory’s defaults, and the salt is a fresh random value so the deployment
+                  address cannot collide with an existing one.
                 </p>
-              )}
+              </details>
             </>
           )}
         </div>

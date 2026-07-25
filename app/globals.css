@@ -127,50 +127,47 @@ body::after {
 
 /* ---------- Topbar ---------- */
 
+/*
+ * Two items, one row, never wrapping. It used to wrap, which is how a full-width
+ * white sign-in button ended up on a line of its own under the wordmark.
+ */
 .topbar {
   display: flex;
   align-items: center;
   justify-content: space-between;
   gap: 14px;
-  flex-wrap: wrap;
-  padding: 16px 0;
+  padding: 14px 0;
   border-bottom: 1px solid var(--hairline);
 }
 
+/* The wordmark doubles as the way home, so it is a button, not a div. */
 .brand {
   display: flex;
   align-items: center;
-  gap: 12px;
+  font: inherit;
+  padding: 0;
+  border: 0;
+  background: none;
+  cursor: pointer;
 }
 
 .brand-mark {
-  font-size: 17px;
+  font-size: 15px;
   font-weight: 700;
-  letter-spacing: 0.02em;
+  letter-spacing: 0.04em;
   text-transform: uppercase;
   color: var(--text-primary);
-  /* Square bracket mark, echoing the sidebar logo tile. */
-  border: 2px solid var(--lime);
-  padding: 5px 10px;
+  border: 1.5px solid var(--lime);
+  padding: 6px 11px;
+  transition: box-shadow 140ms ease;
+}
+
+.brand:hover .brand-mark {
+  box-shadow: 0 0 0 3px var(--lime-glow);
 }
 
 .brand-mark span {
   color: var(--lime);
-}
-
-.brand-sub {
-  font-size: 10px;
-  letter-spacing: 0.14em;
-  color: var(--text-muted);
-  text-transform: uppercase;
-}
-
-.user {
-  display: flex;
-  align-items: center;
-  gap: 10px;
-  font-size: 12px;
-  color: var(--text-secondary);
 }
 
 .avatar {
@@ -217,7 +214,14 @@ body::after {
   align-items: stretch;
   gap: 0;
   border-bottom: 1px solid var(--hairline);
-  flex-wrap: wrap;
+}
+
+.nav-ext {
+  display: inline-flex;
+  align-items: center;
+  font-size: 10px;
+  letter-spacing: 0.1em;
+  padding: 13px 12px;
 }
 
 .nav-spacer {
@@ -251,9 +255,14 @@ body::after {
   border-bottom-color: var(--lime);
 }
 
-.nav-ext {
+.nav-ext,
+.nav-ext:hover {
   color: var(--lime-dim);
   text-decoration: none;
+}
+
+.nav-ext:hover {
+  color: var(--lime);
 }
 
 /* ---------- Buttons ---------- */
@@ -437,6 +446,13 @@ body::after {
   background: var(--page);
   overflow-x: auto;
   white-space: nowrap;
+}
+
+/* Hex is case-carrying — a checksummed address uppercased is a different string
+   to the eye, and reads as shouting rather than as an address. */
+.bar-mono {
+  text-transform: none;
+  letter-spacing: 0.02em;
 }
 
 .console-body {
@@ -1404,12 +1420,25 @@ textarea.input {
   }
 }
 
-/* ---------- Topbar right: identity + overflow menu ---------- */
+/* ---------- Topbar right: identity + menu ---------- */
 
 .topbar-right {
   display: flex;
   align-items: center;
   gap: 10px;
+}
+
+.topbar-wait {
+  font-size: 12px;
+  color: var(--text-muted);
+}
+
+.user {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  font-size: 12px;
+  color: var(--text-secondary);
 }
 
 .user-handle {
@@ -1427,27 +1456,19 @@ textarea.input {
   color: var(--lime);
 }
 
-/* ---------- Overflow menu (⋮) ---------- */
+/* ---------- Menu button + sheet (below the nav breakpoint only) ---------- */
 
-.menu-wrap {
-  position: relative;
-}
-
-/*
- * A 40px square target. The glyph is small but the hit area is not — this is the
- * only way into half the app on a phone, so it must not be a 12px tap target.
- */
 .menu-btn {
-  font-family: inherit;
-  font-size: 20px;
-  line-height: 1;
-  width: 40px;
-  height: 40px;
-  border: 1px solid var(--hairline);
+  display: none; /* switched on under the breakpoint at the foot of this file */
+  align-items: center;
+  justify-content: center;
+  width: 42px;
+  height: 42px;
+  border: 1px solid var(--hairline-bright);
   background: var(--surface-1);
   color: var(--text-secondary);
   cursor: pointer;
-  transition: color 120ms linear, border-color 120ms linear;
+  flex-shrink: 0;
 }
 
 .menu-btn:hover,
@@ -1456,32 +1477,132 @@ textarea.input {
   border-color: var(--lime-dim);
 }
 
-.menu-pop {
-  position: absolute;
-  top: calc(100% + 6px);
-  right: 0;
-  z-index: 40;
-  min-width: 264px;
-  max-width: min(92vw, 320px);
-  background: var(--surface-raised);
-  border: 1px solid var(--hairline-bright);
-  box-shadow: 0 18px 44px rgba(0, 0, 0, 0.7);
-  padding: 5px;
-  display: flex;
-  flex-direction: column;
+.burger line {
+  stroke: currentColor;
+  stroke-width: 1.6;
+  stroke-linecap: square;
+  transform-origin: center;
+  transition: transform 160ms ease, opacity 120ms linear;
 }
 
-.menu-item {
+/* Open state folds the bars into a cross, so the button says what it will do. */
+.burger-open line:nth-child(1) { transform: translateY(5px) rotate(45deg); }
+.burger-open line:nth-child(2) { opacity: 0; }
+.burger-open line:nth-child(3) { transform: translateY(-5px) rotate(-45deg); }
+
+.menu-scrim {
+  position: fixed;
+  inset: 0;
+  z-index: 60;
+  background: rgba(0, 0, 0, 0.74);
+  display: flex;
+  justify-content: flex-end;
+  animation: fade-in 140ms ease;
+}
+
+.menu-sheet {
+  width: min(86vw, 320px);
+  height: 100%;
+  background: var(--surface-raised);
+  border-left: 1px solid var(--hairline-bright);
+  display: flex;
+  flex-direction: column;
+  overflow-y: auto;
+  animation: slide-in 180ms ease;
+}
+
+@keyframes fade-in {
+  from { opacity: 0; }
+  to { opacity: 1; }
+}
+
+@keyframes slide-in {
+  from { transform: translateX(100%); }
+  to { transform: translateX(0); }
+}
+
+.menu-sheet-head {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  padding: 15px 18px;
+  border-bottom: 1px solid var(--hairline);
+}
+
+.menu-sheet-title {
+  font-size: 10px;
+  font-weight: 700;
+  letter-spacing: 0.2em;
+  text-transform: uppercase;
+  color: var(--text-muted);
+}
+
+.menu-close {
+  font-family: inherit;
+  font-size: 15px;
+  line-height: 1;
+  width: 32px;
+  height: 32px;
+  border: 0;
+  background: none;
+  color: var(--text-muted);
+  cursor: pointer;
+}
+
+.menu-close:hover {
+  color: var(--lime);
+}
+
+.menu-account {
+  padding: 16px 18px;
+  border-bottom: 1px solid var(--hairline);
+}
+
+.menu-signin {
+  width: 100%;
+}
+
+.menu-user {
   display: flex;
   align-items: center;
   gap: 11px;
+}
+
+.menu-user-handle {
+  display: block;
+  font-size: 14px;
+  font-weight: 700;
+  color: var(--text-primary);
+}
+
+.menu-user-sub {
+  display: block;
+  font-size: 10px;
+  letter-spacing: 0.1em;
+  text-transform: uppercase;
+  color: var(--text-muted);
+}
+
+.menu-list {
+  display: flex;
+  flex-direction: column;
+  padding: 6px 0;
+}
+
+/*
+ * 52px rows. A navigation sheet is the only way to reach half the app on a
+ * phone, so the targets are sized for a thumb rather than for density.
+ */
+.menu-item {
+  display: flex;
+  align-items: center;
   width: 100%;
+  min-height: 52px;
   font-family: inherit;
-  font-size: 12px;
   text-align: left;
-  text-decoration: none;
-  padding: 10px 11px;
+  padding: 9px 18px;
   border: 0;
+  border-left: 2px solid transparent;
   background: none;
   color: var(--text-secondary);
   cursor: pointer;
@@ -1493,55 +1614,62 @@ textarea.input {
   color: var(--text-primary);
 }
 
+/* Active is a lime rule AND lime text — never colour on its own. */
 .menu-item-on {
+  border-left-color: var(--lime);
   color: var(--lime);
-}
-
-.menu-item-icon {
-  width: 16px;
-  text-align: center;
-  color: var(--lime-dim);
-  flex-shrink: 0;
+  background: var(--surface-1);
 }
 
 .menu-item-body {
   display: flex;
   flex-direction: column;
   min-width: 0;
-  flex: 1;
+  gap: 1px;
 }
 
 .menu-item-label {
+  font-size: 12px;
   font-weight: 700;
-  letter-spacing: 0.08em;
+  letter-spacing: 0.12em;
   text-transform: uppercase;
-  font-size: 11px;
 }
 
 .menu-item-hint {
-  font-size: 10px;
+  font-size: 10.5px;
   color: var(--text-muted);
   letter-spacing: 0.02em;
-  text-transform: none;
 }
 
-.menu-item-dot {
-  font-size: 8px;
+/* Anchored to the bottom: destinations at the top, meta at the foot, and the
+   empty space between them rather than trailing off under the last link. */
+.menu-links {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 16px;
+  padding: 15px 18px;
+  border-top: 1px solid var(--hairline);
+  margin-top: auto;
+}
+
+.menu-link {
+  font-size: 11px;
+  letter-spacing: 0.08em;
+  text-transform: uppercase;
+  color: var(--lime-dim);
+  text-decoration: none;
+}
+
+.menu-link:hover {
   color: var(--lime);
-}
-
-.menu-sep {
-  height: 1px;
-  background: var(--hairline);
-  margin: 5px 0;
 }
 
 .menu-foot {
   font-size: 10px;
+  line-height: 1.6;
   color: var(--text-muted);
-  padding: 9px 11px 5px;
-  border-top: 1px solid var(--hairline);
-  margin-top: 5px;
+  padding: 0 18px 20px;
+  margin: 0;
 }
 
 /* ---------- Terminal ---------- */
@@ -2062,5 +2190,120 @@ textarea.input {
   .term-help-row {
     grid-template-columns: 1fr;
     gap: 2px;
+  }
+}
+
+/* ---------- The nav breakpoint ---------- */
+
+/*
+ * Exactly one navigation is on screen at any width.
+ *
+ * Above 900px the tab strip carries all seven destinations and the menu button
+ * is not rendered. Below it the strip would wrap into an unreadable block, so it
+ * is replaced by the sheet. Showing both at once — which is what the header used
+ * to do — is a duplicate, not a convenience.
+ */
+@media (max-width: 900px) {
+  .nav {
+    display: none;
+  }
+
+  .menu-btn {
+    display: inline-flex;
+  }
+
+  /* The sign-in call to action lives at the top of the sheet on a phone, where
+     a full-width white button in the header crowds out the wordmark. */
+  .topbar-wide {
+    display: none;
+  }
+
+  .topbar {
+    padding: 12px 0;
+  }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .menu-scrim,
+  .menu-sheet {
+    animation: none;
+  }
+  .burger line {
+    transition: none;
+  }
+}
+
+/* ---------- Folded technical details ---------- */
+
+.tech {
+  margin-top: 22px;
+  border-top: 1px solid var(--hairline);
+  padding-top: 14px;
+}
+
+.tech summary {
+  font-size: 10px;
+  font-weight: 700;
+  letter-spacing: 0.14em;
+  text-transform: uppercase;
+  color: var(--text-muted);
+  cursor: pointer;
+  list-style: none;
+}
+
+.tech summary::-webkit-details-marker {
+  display: none;
+}
+
+/* A rotating caret, so the control reads as expandable without an icon font. */
+.tech summary::before {
+  content: "▸";
+  display: inline-block;
+  margin-right: 8px;
+  color: var(--lime-dim);
+  transition: transform 140ms ease;
+}
+
+.tech[open] summary::before {
+  transform: rotate(90deg);
+}
+
+.tech summary:hover {
+  color: var(--text-secondary);
+}
+
+.tech-list {
+  display: grid;
+  grid-template-columns: minmax(0, 110px) 1fr;
+  gap: 6px 14px;
+  margin: 14px 0 0;
+  font-size: 11px;
+}
+
+.tech-list dt {
+  color: var(--text-muted);
+  letter-spacing: 0.08em;
+  text-transform: uppercase;
+  font-size: 10px;
+}
+
+.tech-list dd {
+  margin: 0;
+  color: var(--text-secondary);
+  word-break: break-all;
+}
+
+.tech-list code {
+  color: var(--lime-dim);
+  font-size: 11px;
+}
+
+@media (max-width: 560px) {
+  .tech-list {
+    grid-template-columns: 1fr;
+    gap: 2px;
+  }
+  .tech-list dd {
+    margin-bottom: 8px;
   }
 }

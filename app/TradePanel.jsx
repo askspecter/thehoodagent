@@ -234,7 +234,15 @@ export default function TradePanel({ network, token: initialToken }) {
       <div className="console">
         <div className="console-bar">
           <span className="live-dot" />
-          ROUTER {meta?.swapRouter ? `· ${shortAddress(meta.swapRouter)} · ${meta.poolFee / 10000}% fee` : "· loading…"}
+          ROUTER{" "}
+          {meta?.swapRouter ? (
+            <>
+              · <span className="bar-mono">{shortAddress(meta.swapRouter)}</span> ·{" "}
+              {meta.poolFee / 10_000}% fee
+            </>
+          ) : (
+            "· loading…"
+          )}
         </div>
         <div className="console-body">
           {metaError && (

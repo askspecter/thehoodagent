@@ -125,6 +125,28 @@ const CAPS = [
   },
 ];
 
+/**
+ * Every destination in the app, in one list.
+ *
+ * The tab strip and the mobile sheet both render from this. They used to carry
+ * separate hand-written lists, which is how the strip ended up showing five of
+ * the seven views while the menu showed all of them.
+ */
+const DESTINATIONS = [
+  { key: "terminal", label: "Terminal", hint: "buy me $5 pons" },
+  { key: "launches", label: "Launches", hint: "the live feed" },
+  { key: "create", label: "Create", hint: "deploy a token" },
+  { key: "trade", label: "Trade", hint: "the manual form" },
+  { key: "audit", label: "Audit", hint: "can you sell it?" },
+  { key: "profile", label: "Profile", hint: "your bags, priced" },
+  { key: "wallet", label: "Wallet", hint: "address · export key" },
+];
+
+const EXTERNAL_LINKS = [
+  { href: "https://robinhoodchain.blockscout.com", label: "Explorer" },
+  { href: "https://ponsfamily.com", label: "pons" },
+];
+
 const AUTH_ERRORS = {
   not_configured: "X sign-in is not finished being set up on this deployment.",
   state_mismatch: "Sign-in expired or was tampered with. Please try again.",
@@ -295,129 +317,78 @@ export default function Home() {
 
       <div className="shell">
         <header className="topbar">
-          <div className="brand">
-            <div className="brand-mark">
+          <button className="brand" onClick={() => setView("terminal")} aria-label="Home">
+            <span className="brand-mark">
               pons<span>/</span>sentinel
-            </div>
-            <div className="brand-sub">ROBINHOOD CHAIN · CHAIN ID 4663</div>
-          </div>
+            </span>
+          </button>
 
           <div className="topbar-right">
             {loadingSession ? (
-              <span className="brand-sub">…</span>
+              <span className="topbar-wait" aria-label="Loading session">
+                …
+              </span>
             ) : user ? (
               <div className="user">
                 {user.avatar && <img className="avatar" src={user.avatar} alt="" />}
                 <button className="user-handle" onClick={() => setView("profile")}>
                   @{user.username}
                 </button>
+                <button className="btn btn-ghost topbar-wide" onClick={logout}>
+                  Sign out
+                </button>
               </div>
             ) : (
               /* Always rendered. Hiding it when credentials are absent made the
                  site look like it had no sign-in at all; if X is not configured
                  the route now redirects back here with a setup panel. */
-              <a className="btn btn-x" href="/api/auth/x/login">
+              <a className="btn btn-x topbar-wide" href="/api/auth/x/login">
                 <XLogo /> Sign in with X
               </a>
             )}
 
+            {/* Below the nav breakpoint only. The tab strip is the navigation on
+                a wide screen, and listing the same destinations twice is what
+                made the header look cluttered. */}
             <Menu
               items={[
-                {
-                  key: "terminal",
-                  label: "Terminal",
-                  hint: "buy me $5 pons",
-                  icon: "▸",
-                  active: view === "terminal",
-                  onSelect: () => setView("terminal"),
-                },
-                {
-                  key: "launches",
-                  label: "Launches",
-                  hint: "the live feed",
-                  icon: "☰",
-                  active: view === "launches",
-                  onSelect: () => setView("launches"),
-                },
-                {
-                  key: "create",
-                  label: "Create",
-                  hint: "deploy a token",
-                  icon: "✦",
-                  active: view === "create",
-                  onSelect: () => setView("create"),
-                },
-                {
-                  key: "trade",
-                  label: "Trade",
-                  hint: "the manual form",
-                  icon: "⇄",
-                  active: view === "trade",
-                  onSelect: () => setView("trade"),
-                },
-                {
-                  key: "audit",
-                  label: "Audit",
-                  hint: "can you sell it?",
-                  icon: "✓",
-                  active: view === "audit",
-                  onSelect: () => setView("audit"),
-                },
-                {
-                  key: "profile",
-                  label: "Profile",
-                  hint: "your bags, priced",
-                  icon: "◉",
-                  active: view === "profile",
-                  onSelect: () => setView("profile"),
-                },
-                {
-                  key: "wallet",
-                  label: "Wallet",
-                  hint: "address · export key",
-                  icon: "◈",
-                  active: view === "wallet",
-                  onSelect: () => setView("wallet"),
-                },
+                ...DESTINATIONS.map(({ key, label, hint }) => ({
+                  key,
+                  label,
+                  hint,
+                  active: view === key,
+                  onSelect: () => setView(key),
+                })),
                 ...(user
-                  ? [
-                      {
-                        key: "signout",
-                        label: "Sign out",
-                        hint: `@${user.username}`,
-                        icon: "⏻",
-                        onSelect: logout,
-                      },
-                    ]
+                  ? [{ key: "signout", label: "Sign out", hint: `@${user.username}`, onSelect: logout }]
                   : []),
               ]}
-              links={[
-                {
-                  href: "https://robinhoodchain.blockscout.com",
-                  label: "Explorer",
-                  icon: "⧉",
-                  hint: "Robinhood Chain on Blockscout",
-                },
-                {
-                  href: "https://ponsfamily.com",
-                  label: "ponsfamily.com",
-                  icon: "⧉",
-                  hint: "same factory, same pools",
-                },
-              ]}
+              links={EXTERNAL_LINKS}
+              account={
+                user ? (
+                  <div className="menu-user">
+                    {user.avatar && <img className="avatar" src={user.avatar} alt="" />}
+                    <span>
+                      <span className="menu-user-handle">@{user.username}</span>
+                      <span className="menu-user-sub">signed in with X</span>
+                    </span>
+                  </div>
+                ) : (
+                  <a className="btn btn-x menu-signin" href="/api/auth/x/login">
+                    <XLogo /> Sign in with X
+                  </a>
+                )
+              }
               footer="Not affiliated with Robinhood. Nothing here is financial advice."
             />
           </div>
         </header>
 
+        {/* The tab strip is the navigation at wide widths and is hidden below the
+            breakpoint, where the sheet takes over. Exactly one of the two is on
+            screen at any width. */}
         <nav className="nav">
-          {[
-            ["terminal", "Terminal"],
-            ["launches", "Launches"],
-            ["create", "Create"],
-            ["trade", "Trade"],
-            ["audit", "Audit"],
-          ].map(([key, label]) => (
+          {DESTINATIONS.map(({ key, label }) => (
             <button
               key={key}
               className={`nav-tab ${view === key ? "nav-on" : ""}`}
@@ -426,6 +397,18 @@ export default function Home() {
             >
               {label}
             </button>
+          ))}
+          <span className="nav-spacer" />
+          {EXTERNAL_LINKS.map((link) => (
+            <a
+              key={link.href}
+              className="nav-tab nav-ext"
+              href={link.href}
+              target="_blank"
+              rel="noopener noreferrer"
+            >
+              {link.label} <span aria-hidden="true">↗</span>
+            </a>
           ))}
         </nav>
 
