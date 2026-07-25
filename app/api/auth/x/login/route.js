@@ -1,6 +1,7 @@
 import crypto from "node:crypto";
 import { NextResponse } from "next/server";
 import { setOAuthState } from "@/lib/session";
+import { publicOrigin, xConfig } from "@/lib/xauth";
 
 /**
  * Step 1 of X (Twitter) OAuth 2.0 with PKCE.
@@ -10,17 +11,16 @@ import { setOAuthState } from "@/lib/session";
  * code without the verifier, which never leaves our httpOnly cookie.
  */
 export async function GET(request) {
-  const clientId = process.env.X_CLIENT_ID;
-  const redirectUri = process.env.X_REDIRECT_URI;
+  const config = xConfig(request);
+  const home = new URL("/", publicOrigin(request));
 
-  if (!clientId || !redirectUri) {
-    return NextResponse.json(
-      {
-        error: "X sign-in is not configured.",
-        hint: "Set X_CLIENT_ID, X_CLIENT_SECRET and X_REDIRECT_URI in web/.env.local. See web/README.md.",
-      },
-      { status: 500 }
-    );
+  if (!config.configured) {
+    // This used to answer a browser with a raw JSON 500, which is what a visitor
+    // saw instead of a sign-in page. Send them back to the app with a code it
+    // knows how to explain, and list what is missing so it can be fixed.
+    home.searchParams.set("auth_error", "not_configured");
+    home.searchParams.set("missing", config.missing.join(","));
+    return NextResponse.redirect(home);
   }
 
   // PKCE pair
@@ -33,12 +33,22 @@ export async function GET(request) {
   // CSRF token — the callback refuses any state it did not issue.
   const state = crypto.randomBytes(16).toString("base64url");
 
-  await setOAuthState({ codeVerifier, state });
+  try {
+    // The redirect URI is pinned into the cookie: the token exchange must send
+    // back the exact string X saw here, and deriving it twice from two different
+    // requests is how that quietly stops matching.
+    await setOAuthState({ codeVerifier, state, redirectUri: config.redirectUri });
+  } catch (error) {
+    console.error("Could not start X sign-in:", error);
+    home.searchParams.set("auth_error", "not_configured");
+    home.searchParams.set("missing", "SESSION_SECRET");
+    return NextResponse.redirect(home);
+  }
 
   const authorize = new URL("https://x.com/i/oauth2/authorize");
   authorize.searchParams.set("response_type", "code");
-  authorize.searchParams.set("client_id", clientId);
-  authorize.searchParams.set("redirect_uri", redirectUri);
+  authorize.searchParams.set("client_id", config.clientId);
+  authorize.searchParams.set("redirect_uri", config.redirectUri);
   authorize.searchParams.set("scope", "users.read tweet.read");
   authorize.searchParams.set("state", state);
   authorize.searchParams.set("code_challenge", codeChallenge);

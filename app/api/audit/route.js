@@ -1,5 +1,5 @@
 import { NextResponse } from "next/server";
-import { auditToken, getChain, scoreReport } from "@/lib/engine";
+import { auditToken, getChain, getEthUsd, scoreReport } from "@/lib/engine";
 import { getSession } from "@/lib/session";
 
 /**
@@ -97,7 +97,12 @@ export async function POST(request) {
       maxBlocks: Number(process.env.AUDIT_MAX_BLOCKS || 30_000),
     });
     const score = scoreReport(report);
-    return NextResponse.json(serialise({ ...report, score }));
+    // Attached rather than baked into the report: the engine deals in WETH,
+    // which is what the pool holds, and the dollar figure is presentation.
+    const rate = await getEthUsd();
+    return NextResponse.json(
+      serialise({ ...report, score, ethUsd: rate?.usd ?? null, ethUsdStale: rate?.stale ?? false })
+    );
   } catch (error) {
     console.error("Audit failed:", error);
     const unreachable = /fetch|network|ECONN|timeout|ENOTFOUND/i.test(error.message || "");

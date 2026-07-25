@@ -1,6 +1,7 @@
 "use client";
 
 import { useCallback, useEffect, useState } from "react";
+import { fmtEth, fmtUsdPrice, fullNumber, shortAddr, usdOr } from "./format";
 
 /**
  * The launchpad feed.
@@ -8,26 +9,12 @@ import { useCallback, useEffect, useState } from "react";
  * Every entry is a token the pons factory deployed, read from its own
  * `TokenLaunched` event — so anything launched through this site appears here and
  * on ponsfamily.com alike, because it is the same factory and the same pool.
+ *
+ * Figures are shown in dollars with the WETH value underneath. The pool holds
+ * WETH and that is the honest denomination, but "Ξ0.00000000284" is not a price
+ * anyone can read, and a market cap of "Ξ2.84" tells you nothing about whether
+ * this is a two-thousand-dollar token or a two-million-dollar one.
  */
-
-function fmtUsdish(n, symbol = "Ξ") {
-  if (n == null || !Number.isFinite(n)) return "—";
-  if (n >= 1_000_000) return `${symbol}${(n / 1_000_000).toFixed(2)}M`;
-  if (n >= 1_000) return `${symbol}${(n / 1_000).toFixed(1)}K`;
-  if (n >= 1) return `${symbol}${n.toFixed(2)}`;
-  return `${symbol}${n.toPrecision(3)}`;
-}
-
-function fmtPrice(n) {
-  if (n == null || !Number.isFinite(n)) return "—";
-  if (n === 0) return "0";
-  if (n < 1e-6) return n.toExponential(2);
-  return n.toPrecision(4);
-}
-
-function shortAddr(a) {
-  return a ? `${a.slice(0, 6)}…${a.slice(-4)}` : "";
-}
 
 /** Deterministic fallback avatar when a launch has no logo set. */
 function TokenLogo({ launch }) {
@@ -55,7 +42,7 @@ function TokenLogo({ launch }) {
   return <div className="tok-logo tok-logo-fallback">{letter}</div>;
 }
 
-function LaunchCard({ launch, rank, explorer, onAudit, onTrade }) {
+function LaunchCard({ launch, rank, explorer, ethUsd, onAudit, onTrade }) {
   const grad = launch.graduated;
   const progress = launch.graduationProgress;
 
@@ -77,11 +64,19 @@ function LaunchCard({ launch, rank, explorer, onAudit, onTrade }) {
       <div className="tok-figures">
         <div>
           <div className="tok-fig-label">Market cap</div>
-          <div className="tok-fig">{fmtUsdish(launch.marketCapWeth)}</div>
+          <div className="tok-fig" title={fullNumber(launch.marketCapWeth, "WETH")}>
+            {usdOr(launch.marketCapWeth, ethUsd)}
+          </div>
+          {ethUsd != null && (
+            <div className="tok-fig-alt">{fmtEth(launch.marketCapWeth)}</div>
+          )}
         </div>
         <div className="tok-fig-right">
           <div className="tok-fig-label">Price</div>
-          <div className="tok-fig tok-fig-sm">{fmtPrice(launch.priceInWeth)}</div>
+          <div className="tok-fig tok-fig-sm" title={fullNumber(launch.priceInWeth, "WETH")}>
+            {usdOr(launch.priceInWeth, ethUsd, fmtUsdPrice)}
+          </div>
+          {ethUsd != null && <div className="tok-fig-alt">{fmtEth(launch.priceInWeth)}</div>}
         </div>
       </div>
 
@@ -166,6 +161,7 @@ export default function LaunchFeed({ network, onAudit, onTrade, nonce }) {
   }, [load, nonce]);
 
   const stats = data?.stats;
+  const ethUsd = data?.ethUsd ?? null;
   const allLaunches = data?.launches || [];
 
   // Tokens launched through this site, matched against the on-chain feed.
@@ -185,7 +181,7 @@ export default function LaunchFeed({ network, onAudit, onTrade, nonce }) {
           Launchpad · pons factory
         </div>
         <h1>
-          Launch it here. It trades <em>everywhere</em>.
+          Create it here. It trades <em>everywhere</em>.
           <span className="cursor" />
         </h1>
         <p>
@@ -214,8 +210,13 @@ export default function LaunchFeed({ network, onAudit, onTrade, nonce }) {
           </div>
           <div className="stat">
             <div className="stat-label">Combined mcap</div>
-            <div className="stat-value">{fmtUsdish(stats.totalMcapWeth)}</div>
-            <div className="stat-sub">of the {stats.enriched} shown</div>
+            <div className="stat-value" title={fullNumber(stats.totalMcapWeth, "WETH")}>
+              {usdOr(stats.totalMcapWeth, ethUsd)}
+            </div>
+            <div className="stat-sub">
+              of the {stats.enriched} shown
+              {ethUsd != null && ` · ${fmtEth(stats.totalMcapWeth)}`}
+            </div>
           </div>
         </div>
       )}
@@ -250,7 +251,7 @@ export default function LaunchFeed({ network, onAudit, onTrade, nonce }) {
         <div className="alert">
           <span className="alert-icon">·</span>
           <span>
-            <strong>Nothing launched here yet.</strong> Use the <b>Launch</b> tab to deploy the
+            <strong>Nothing launched here yet.</strong> Use the <b>Create</b> tab to deploy the
             first one — it will appear here and on ponsfamily.com at the same time. Or switch to{" "}
             <button className="link-btn" onClick={() => setScope("all")}>
               all pons launches
@@ -301,6 +302,7 @@ export default function LaunchFeed({ network, onAudit, onTrade, nonce }) {
                 launch={l}
                 rank={i + 1}
                 explorer={data.explorer}
+                ethUsd={ethUsd}
                 onAudit={onAudit}
                 onTrade={onTrade}
               />
@@ -319,6 +321,7 @@ export default function LaunchFeed({ network, onAudit, onTrade, nonce }) {
                 launch={l}
                 rank={graduated.length + i + 1}
                 explorer={data.explorer}
+                ethUsd={ethUsd}
                 onAudit={onAudit}
                 onTrade={onTrade}
               />

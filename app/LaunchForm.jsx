@@ -84,7 +84,7 @@ function buildArgs(inputs, values, pathPrefix = []) {
   });
 }
 
-export default function LaunchForm({ network, onLaunched }) {
+export default function LaunchForm({ network, onLaunched, prefill = null }) {
   const [meta, setMeta] = useState(null);
   const [metaError, setMetaError] = useState(null);
   const [loading, setLoading] = useState(true);
@@ -167,6 +167,30 @@ export default function LaunchForm({ network, onLaunched }) {
       return next;
     });
   }, [account, xWallet, fields]);
+
+  /**
+   * `create HOOD Hood Rat` in the terminal lands here. Only fields the visitor
+   * has not already typed into are filled, so arriving from the terminal a
+   * second time cannot overwrite work in progress.
+   */
+  useEffect(() => {
+    if (!prefill || !fields.length) return;
+    setValues((prev) => {
+      const next = { ...prev };
+      for (const field of fields) {
+        const hint = hintFor(field);
+        const key = field.path.join(".");
+        if (next[key]) continue;
+        if (prefill.symbol && /^(symbol|ticker)$/i.test(field.name || "")) {
+          next[key] = prefill.symbol;
+        }
+        if (prefill.name && /^(name|tokenname)$/i.test(field.name || "") && !hint.isLogo) {
+          next[key] = prefill.name;
+        }
+      }
+      return next;
+    });
+  }, [prefill, fields]);
 
   const setValue = (key, value) => setValues((prev) => ({ ...prev, [key]: value }));
 
@@ -264,10 +288,10 @@ export default function LaunchForm({ network, onLaunched }) {
       <section className="hero hero-tight">
         <div className="eyebrow">
           <span className="live-dot" />
-          Launch · pons factory
+          Create · pons factory
         </div>
         <h1>
-          Deploy it here. It lands <em>on pons</em>.
+          Create it here. It lands <em>on pons</em>.
           <span className="cursor" />
         </h1>
         <p>
@@ -407,10 +431,10 @@ export default function LaunchForm({ network, onLaunched }) {
                   {busy ? (
                     <>
                       <span className="spinner" />
-                      Launching…
+                      Creating…
                     </>
                   ) : (
-                    `Launch · ${meta.launchFeeEth} ETH fee`
+                    `Create · ${meta.launchFeeEth} ETH fee`
                   )}
                 </button>
                 <span className="form-note">
@@ -436,7 +460,7 @@ export default function LaunchForm({ network, onLaunched }) {
                 <div className="alert">
                   <span className="alert-icon sev-good">✔</span>
                   <span>
-                    <strong>Launched.</strong>{" "}
+                    <strong>Created.</strong>{" "}
                     {result.token ? (
                       <>
                         Token <code>{result.token}</code> is live and now appears on

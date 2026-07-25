@@ -19,7 +19,7 @@ export async function POST(request) {
     return NextResponse.json({ error: "Expected a JSON body." }, { status: 400 });
   }
 
-  const { token, side = "buy", amount, network = "robinhood" } = body || {};
+  const { token, side = "buy", amount, network = "robinhood", slippage = 5 } = body || {};
   if (!token || !amount) {
     return NextResponse.json({ error: "Provide `token` and `amount`." }, { status: 400 });
   }
@@ -77,12 +77,19 @@ export async function POST(request) {
     }
 
     const amountOut = result.amountOut;
-    const fmtIn = isBuy
-      ? `${Number(formatEther(amountIn)).toLocaleString(undefined, { maximumFractionDigits: 6 })} ETH`
-      : `${Number(formatUnits(amountIn, decimals)).toLocaleString()} ${symbol}`;
-    const fmtOut = isBuy
-      ? `${Number(formatUnits(amountOut, decimals)).toLocaleString()} ${symbol}`
-      : `${Number(formatEther(amountOut)).toLocaleString(undefined, { maximumFractionDigits: 6 })} ETH`;
+
+    // The floor the UI shows. It used to be absent from this response entirely,
+    // so the "minimum out" tile read "—" on every quote — the one figure that
+    // says how bad the fill is allowed to get.
+    const slippageBps = BigInt(
+      Math.round(Math.min(50, Math.max(0.1, Number(slippage) || 5)) * 100)
+    );
+    const minOut = (amountOut * (10_000n - slippageBps)) / 10_000n;
+
+    const label = (raw, isEth) =>
+      isEth
+        ? `${Number(formatEther(raw)).toLocaleString(undefined, { maximumFractionDigits: 6 })} ETH`
+        : `${Number(formatUnits(raw, decimals)).toLocaleString()} ${symbol}`;
 
     return NextResponse.json({
       side,
@@ -90,8 +97,11 @@ export async function POST(request) {
       decimals,
       amountInRaw: amountIn.toString(),
       amountOutRaw: amountOut.toString(),
-      amountInLabel: fmtIn,
-      amountOutLabel: fmtOut,
+      minOutRaw: minOut.toString(),
+      amountInLabel: label(amountIn, isBuy),
+      amountOutLabel: label(amountOut, !isBuy),
+      minOutLabel: label(minOut, !isBuy),
+      slippagePercent: Number(slippage) || 5,
       poolFee,
     });
   } catch (error) {
