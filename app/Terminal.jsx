@@ -61,7 +61,7 @@ const VERBS = [
  * true in the fallback fonts a phone actually has, and a broken box is a worse
  * first impression than no box.
  */
-const BANNER = ["pons/sentinel · TRADING TERMINAL", "Robinhood Chain · chain id 4663"];
+const BANNER = ["CABLE · TRADING TERMINAL", "Robinhood Chain · chain id 4663"];
 
 const SUGGESTIONS = ["buy $5 pons", "price pons", "list", "portfolio", "help"];
 

@@ -318,9 +318,7 @@ export default function Home() {
       <div className="shell">
         <header className="topbar">
           <button className="brand" onClick={() => setView("terminal")} aria-label="Home">
-            <span className="brand-mark">
-              pons<span>/</span>sentinel
-            </span>
+            <span className="brand-mark">CABLE</span>
           </button>
 
           <div className="topbar-right">
@@ -610,21 +608,8 @@ export default function Home() {
         )}
 
         <footer className="disclaimer">
-        <p>
-          <strong>This is an automated heuristic scan, not financial advice and not a
-          guarantee.</strong>{" "}
-          A clean report means no trap was visible at the moment of the check. An owner who can
-          change fees or apply a blacklist can trap you <em>after</em> you pass a clean audit.
-        </p>
-        <p>
-          Most launchpad tokens go to zero regardless of whether their contract is technically
-          safe. Contract safety and a good investment are different questions.
-        </p>
-        <p>
-          Pons is not affiliated with Robinhood. Verify contract addresses against the official
-          documentation, and type domains manually — lookalike launchpad domains are a common way
-          wallets get drained.
-        </p>
+          Automated heuristic scan — not financial advice. Read-only. CABLE is an interface, not
+          affiliated with Robinhood or pons.
         </footer>
       </div>
     </>

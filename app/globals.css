@@ -2307,3 +2307,171 @@ textarea.input {
     margin-bottom: 8px;
   }
 }
+
+/* ============================================================================
+ * WINDOWS 98 SKIN  (appended override — colours unchanged, style only)
+ *
+ * Reskins the existing chrome into dark-mode Win98: 3D bevels, a title bar,
+ * folder tabs, sunken wells. It overrides visual properties on the shared
+ * classes and comes last, so it wins without deleting any layout rules above.
+ * The lime/black palette and the reserved status colours are untouched.
+ * ==========================================================================*/
+
+:root {
+  --hi: #4e4e47;
+  --hi2: #333330;
+  --lo: #000000;
+  --lo2: #131311;
+  --raise: inset -1px -1px 0 var(--lo), inset 1px 1px 0 var(--hi),
+    inset -2px -2px 0 var(--lo2), inset 2px 2px 0 var(--hi2);
+  --sink: inset -1px -1px 0 var(--hi), inset 1px 1px 0 var(--lo),
+    inset -2px -2px 0 var(--hi2), inset 2px 2px 0 var(--lo2);
+  --ui98: Tahoma, "MS Sans Serif", Geneva, Verdana, sans-serif;
+}
+
+/* Square corners everywhere — Win98 has no rounded anything. */
+.shell,
+.shell *,
+.tape,
+.tape * {
+  border-radius: 0 !important;
+}
+
+body {
+  font-family: var(--ui98);
+  background-color: var(--page);
+  background-image: radial-gradient(rgba(201, 243, 29, 0.05) 1px, transparent 1px);
+  background-size: 4px 4px;
+}
+body::after { display: none; } /* drop the scanline layer */
+
+/* Keep true monospace for terminals, code and numeric figures. */
+.term-screen, .term-console, .term-input, .term-line, .term-prompt,
+.token-meta, .wal-addr, .wal-key, .prof-mono, .bar-value, .bar-label,
+.meter-num, .score-figure, .stat-value, .tok-fig, .tok-rank, .tok-foot,
+code, .field-type {
+  font-family: ui-monospace, "Lucida Console", Menlo, Consolas, monospace !important;
+}
+
+/* ---- The window ---- */
+.tape { display: none; }  /* the marquee was "too much"; drop it */
+
+.shell {
+  max-width: 1000px;
+  margin: 22px auto 40px;
+  padding: 26px 4px 4px;   /* room for the title bar */
+  background: var(--surface-1);
+  box-shadow: var(--raise);
+  position: relative;
+}
+
+/* Title bar injected without touching JSX. */
+.shell::before {
+  content: "CABLE.EXE  —  Robinhood Chain          ─  ▢  ✕";
+  position: absolute;
+  top: 3px;
+  left: 3px;
+  right: 3px;
+  height: 20px;
+  display: flex;
+  align-items: center;
+  padding: 0 8px;
+  background: linear-gradient(90deg, var(--lime), var(--lime-dim));
+  color: #0a0a0a;
+  font-family: var(--ui98);
+  font-weight: 700;
+  font-size: 12px;
+  letter-spacing: 0.02em;
+  white-space: pre;
+  overflow: hidden;
+}
+
+/* Topbar becomes a raised toolbar strip beneath the title bar. */
+.topbar {
+  border-bottom: 0 !important;
+  box-shadow: var(--raise);
+  margin: 4px 0 6px;
+  padding: 8px 10px !important;
+}
+
+.brand-mark {
+  border: 0 !important;
+  box-shadow: var(--raise);
+  padding: 5px 10px !important;
+  color: var(--text-primary) !important;
+}
+.brand:hover .brand-mark { box-shadow: var(--raise) !important; }
+
+/* ---- Folder tabs ---- */
+.nav {
+  border-bottom: 0 !important;
+  gap: 2px !important;
+  padding: 0 4px;
+}
+.nav-tab {
+  box-shadow: var(--raise);
+  border-bottom: 0 !important;
+  background: var(--surface-1) !important;
+  margin-bottom: -1px;
+}
+.nav-on {
+  color: var(--lime) !important;
+  background: var(--surface-1) !important;
+  box-shadow: inset 1px 1px 0 var(--hi), inset -1px 0 0 var(--lo),
+    inset 2px 2px 0 var(--hi2) !important;
+}
+
+/* ---- Buttons ---- */
+.btn {
+  border: 0 !important;
+  box-shadow: var(--raise);
+  background: var(--surface-1);
+  color: var(--text-primary);
+}
+.btn:hover:not(:disabled) { background: var(--surface-2); }
+.btn:active:not(:disabled) { box-shadow: var(--sink); }
+.btn-primary { background: var(--lime) !important; color: #0a0a0a !important; }
+.btn-x { background: #fff !important; color: #0a0a0a !important; }
+.btn-ghost { box-shadow: var(--raise); }
+
+/* ---- Wells: inputs, selects, terminal input ---- */
+.input, .select, .term-input, .term-input-row {
+  border: 0 !important;
+  box-shadow: var(--sink);
+  background: #0d0d0c !important;
+}
+
+/* ---- Beveled surfaces ---- */
+.panel, .console, .tok, .stat, .wal-act, .social-chip, .tok-badge,
+.term-card, .term-chip, .menu-sheet, .menu-item, .step, .cap {
+  box-shadow: var(--raise);
+  border: 0 !important;
+  background: var(--surface-1);
+}
+
+/* Sunken wells for output/figures. */
+.term-screen, .term-console, .console-bar, .token-head, .tok-figures,
+.wal-balance, .wal-key, .bar-track, .meter-track, .stat,
+.score-tile, .prof-row, .logo-preview {
+  box-shadow: var(--sink);
+  border: 0 !important;
+}
+.term-screen, .term-console { background: #0d0d0c !important; }
+
+/* Segmented Win98 progress fill. */
+.meter-fill {
+  background: repeating-linear-gradient(90deg,
+    var(--lime) 0, var(--lime) 8px, #0d0d0c 8px, #0d0d0c 10px) !important;
+}
+
+/* Findings log divider stays, but drop card borders to bevels. */
+.finding { border-top-color: var(--hairline) !important; }
+
+/* Status bar at the foot of the window. */
+.disclaimer, footer.disclaimer {
+  border-top: 0 !important;
+  box-shadow: var(--sink);
+  margin: 10px 0 0 !important;
+  padding: 6px 10px !important;
+  font-size: 11px !important;
+}

@@ -1,9 +1,9 @@
 import "./globals.css";
 
 export const metadata = {
-  title: "Pons Sentinel — token audit for Robinhood Chain",
+  title: "CABLE — launch, trade, audit on Robinhood Chain",
   description:
-    "Simulate buying and selling a Pons Launchpad token before you spend anything. Honeypot detection, owner-power scan, and holder concentration.",
+    "A trading terminal, launchpad and token auditor for Robinhood Chain. Type a command, or paste an address to check it before you buy.",
 };
 
 export default function RootLayout({ children }) {
