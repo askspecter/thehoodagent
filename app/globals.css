@@ -2832,107 +2832,47 @@ code, .field-type {
 
 /* ========== Site footer ========== */
 
+/*
+ * Minimal by intent: the nav destinations already live in the ⋮ menu, so the
+ * footer carries only the two legal pages and the single X link. Same hairline
+ * borders and mono labels as everything else.
+ */
 .site-footer {
   border-top: 1px solid var(--hairline);
   background: var(--surface-1);
-  margin-top: 40px;
+  margin-top: 48px;
 }
 
-.site-footer > * {
-  max-width: 1080px;
-  margin-inline: auto;
-  padding-inline: 16px;
-}
-
-.foot-lede {
-  padding-top: 40px;
-  display: grid;
-  gap: 12px;
-  max-width: min(1080px, 100%);
-}
-
-.foot-brand {
-  display: inline-flex;
-  align-items: center;
-  gap: 9px;
-  font-size: 16px;
-  font-weight: 800;
-  letter-spacing: 0.08em;
-  text-transform: uppercase;
-  color: var(--text-primary);
-}
-
-.foot-logo {
-  width: 22px;
-  height: 22px;
-  object-fit: contain;
-}
-
-.foot-lede p {
-  font-size: 12.5px;
-  line-height: 1.6;
-  color: var(--text-secondary);
-  max-width: 66ch;
-  margin: 0;
-}
-
-.foot-cols {
-  display: grid;
-  grid-template-columns: repeat(auto-fit, minmax(140px, 1fr));
-  gap: 22px;
-  padding-top: 28px;
-}
-
-.foot-col {
-  display: flex;
-  flex-direction: column;
-  gap: 9px;
-}
-
-.foot-head {
-  font-size: 10px;
-  font-weight: 700;
-  letter-spacing: 0.16em;
-  text-transform: uppercase;
-  color: var(--text-muted);
-  margin-bottom: 2px;
-}
-
-.foot-col a {
-  font-size: 12.5px;
-  color: var(--text-secondary);
-  text-decoration: none;
-  width: fit-content;
-}
-
-.foot-col a:hover {
-  color: var(--lime);
-}
-
-.foot-risk {
-  padding-top: 28px;
-}
-
-.foot-risk p {
-  font-size: 11px;
-  line-height: 1.6;
-  color: var(--text-muted);
-  max-width: 84ch;
-  margin: 6px 0 0;
-}
-
-.foot-base {
+.foot-inner {
   display: flex;
   align-items: center;
   justify-content: space-between;
   flex-wrap: wrap;
+  gap: 14px;
+  padding-top: 20px;
+  padding-bottom: 18px;
+}
+
+.foot-legal {
+  display: flex;
+  align-items: center;
   gap: 12px;
-  padding-top: 24px;
-  padding-bottom: 40px;
-  margin-top: 24px;
-  border-top: 1px solid var(--hairline);
   font-size: 11px;
-  color: var(--text-muted);
+  letter-spacing: 0.08em;
+  text-transform: uppercase;
+}
+
+.foot-legal a {
+  color: var(--text-secondary);
+  text-decoration: none;
+}
+
+.foot-legal a:hover {
+  color: var(--lime);
+}
+
+.foot-sep {
+  color: var(--hairline-bright);
 }
 
 .foot-x {
@@ -2945,12 +2885,30 @@ code, .field-type {
   color: var(--text-secondary);
   text-decoration: none;
   border: 1px solid var(--hairline-bright);
-  padding: 8px 13px;
+  padding: 7px 12px;
 }
 
 .foot-x:hover {
   color: var(--text-primary);
   border-color: var(--lime);
+}
+
+.foot-base {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  flex-wrap: wrap;
+  gap: 8px;
+  padding-top: 14px;
+  padding-bottom: 28px;
+  border-top: 1px solid var(--hairline);
+  font-size: 10px;
+  letter-spacing: 0.04em;
+  color: var(--text-muted);
+}
+
+.foot-note {
+  color: var(--text-muted);
 }
 
 /* ========== Legal pages ========== */
