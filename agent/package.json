@@ -1,0 +1,10 @@
+{
+  "name": "@pons/engine",
+  "version": "1.0.0",
+  "private": true,
+  "description": "Read-only token audit engine for Robinhood Chain / Pons Launchpad. Shared by the web app and the CLI.",
+  "main": "index.js",
+  "dependencies": {
+    "ethers": "^6.13.4"
+  }
+}

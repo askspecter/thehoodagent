@@ -1,11 +1,13 @@
-# Pons Family ($PONS)
+# Pons Sentinel
 
-Fixed-supply ERC-20 token for the Pons Family launch (ponsfamily.com).
+**Find out if you can sell a token — before you buy it.**
 
-> **Status:** the token contract is done, compiled, and tested. The
-> "stonkbrokers-style" NFT layer (broker NFTs, ERC-6551 wallets, dividends,
-> NFT AMM) is **not built yet** — it is blocked on choosing a chain. See
-> [Roadmap](#roadmap) below.
+A token auditor for [Robinhood Chain](https://docs.robinhood.com/chain/) and the
+Pons Launchpad. Sign in with X, paste a contract address, and get a risk report
+built from what the chain actually says — including a simulated buy-and-sell
+round trip that detects honeypots without spending anything.
+
+<!-- Screenshot: run the app and see for yourself — instructions below. -->
 
 ---
 
@@ -13,114 +15,118 @@ Fixed-supply ERC-20 token for the Pons Family launch (ponsfamily.com).
 
 | Path | What it is |
 |---|---|
-| `contracts/PonsFamilyToken.sol` | The $PONS ERC-20 token. 1,000,000,000 fixed supply. |
-| `test/PonsFamilyToken.test.js` | Test suite (7 tests, all passing). |
-| `scripts/deploy.js` | Deployment script for testnets and mainnets. |
-| `hardhat.config.js` | Network + compiler configuration. |
-| `.env.example` | Template for your secrets. Copy to `.env`. |
+| **`web/`** | **The web app.** Next.js, X (Twitter) sign-in, audit dashboard. [Setup →](web/README.md) |
+| **`agent/`** | The audit engine (`@pons/engine`). Plain Node, read-only, shared by the web app. |
+| `agent/cli.js` | Optional terminal wrapper around the same engine, handy while developing. |
+| `contracts/PonsFamilyToken.sol` | A fixed-supply ERC-20, if you ever deploy a token *independently* of Pons. |
+| `contracts/mocks/MaliciousToken.sol` | Test fixture full of rug patterns — target practice that proves the scanner fires. |
+| `test/` | 22 tests. Runs the engine against real bytecode on an in-process EVM. |
 
-## Token design
-
-$PONS is deliberately boring, because boring is what makes a token safe to buy:
-
-- **Fixed supply.** 1,000,000,000 PONS minted once at deployment. There is no
-  `mint()` function, so supply can never be inflated — only reduced via `burn()`.
-- **No owner, no admin.** Zero privileged functions. Nobody can pause trading,
-  blacklist a wallet, change a fee, or move someone else's tokens.
-- **No transfer tax, no hidden hooks.** Anyone holding $PONS can always sell it.
-
-Anyone can verify these claims on a block explorer once the source is verified.
-
-> **Note on rug-safety:** these properties protect the *contract*. They do not by
-> themselves protect *liquidity* — an LP owner can still pull the pool. Locking or
-> burning the LP tokens is a separate step (see below).
+```bash
+npm install          # root: contracts + engine + tests
+npm test             # 22 passing
+cd web && npm install && npm run dev
+```
 
 ---
 
-## Setup
+## The audit
 
-```bash
-npm install
-cp .env.example .env    # then fill in PRIVATE_KEY
-npm test
-```
+| Check | How it works |
+|---|---|
+| **Honeypot** | Quotes a buy *and* a sell through the real Uniswap V3 pool using QuoterV2 via `eth_call`. The quote executes the token's own transfer hook, so a sell block shows up as a reverting sell quote. Nothing is spent and no approval is granted. |
+| **Sell tax** | Round-trip loss. ~2–4% is normal fees; 20%+ implies a transfer tax; 50%+ is a soft honeypot. |
+| **Owner power** | Reads PUSH4 selectors out of the deployed dispatcher to find `mint`, `blacklist`, `pause`, `setFee`, `setMaxTxAmount`, … — so it works on unverified contracts, which is most of a launchpad. |
+| **Ownership** | `owner()` renounced counts in the token's favour; a live owner *plus* privileged functions is the worst case. |
+| **Upgradeable proxy** | EIP-1967 / OZ-legacy implementation slots. Upgradeable logic can gain a sell block after you buy. |
+| **Concentration** | Replays `Transfer` events and ranks holders. A DEX pool legitimately holds a large share, so this is flagged for review rather than called malice. |
 
-### If `npm test` fails to download the compiler
+The bytecode walker respects PUSH immediates rather than substring-matching, so
+PUSH *data* that happens to contain a selector's bytes does not produce a false
+accusation. There is a test for exactly that.
 
-Some sandboxed networks block `binaries.soliditylang.org`. Install the compiler
-from npm instead and Hardhat will pick it up automatically:
+### What it cannot tell you
 
-```bash
-npm install --no-save solc@0.8.24
-```
+- A trap keyed on `tx.origin`, block height, or a per-wallet allowlist can quote
+  clean and still fail for you.
+- A blacklist can be applied **after** a clean audit.
+- Contract safety is not investment quality. Most launchpad tokens go to zero
+  with completely ordinary contracts.
 
-(`hardhat.config.js` prefers a matching `node_modules/solc` when present, and
-falls back to the normal download when it is absent.)
-
----
-
-## Deploying
-
-**Practice on a testnet first.** Testnet coins are free; mistakes on mainnet are not.
-
-```bash
-npm run deploy:bsc-testnet     # or: deploy:base-sepolia
-```
-
-When you are confident:
-
-```bash
-npm run deploy:bsc             # or: deploy:base / deploy:eth
-```
-
-Then verify the source publicly so holders can read the contract:
-
-```bash
-npx hardhat verify --network bsc <CONTRACT_ADDRESS> <TREASURY_ADDRESS>
-```
-
-### Making $PONS actually tradeable
-
-Deploying the token does **not** make it tradeable. A token with no liquidity
-cannot be bought or sold. To open trading you add a liquidity pool on a DEX
-(PancakeSwap on BSC, Uniswap on Base/Ethereum), pairing $PONS with a real asset
-(BNB / ETH / USDC). **That paired asset is your own capital** — it is what gives
-$PONS a price.
-
-After creating the pool, **lock or burn the LP tokens**. Holding withdrawable LP
-is the single biggest trust problem for a new token, because it means the pool
-can be pulled at any time.
-
-### Security
-
-- `PRIVATE_KEY` controls real money. Use a **fresh** wallet holding only the gas
-  you need. Never paste it into a chat, a website, or a "support" DM.
-- `.env` is gitignored. Keep it that way.
-- Before mainnet, consider a professional audit — especially for the NFT/AMM
-  contracts in the roadmap, which hold other people's funds.
+A report always states which checks did **not** run; a skipped safety check drops
+the report's confidence to `partial` rather than reading as a pass.
 
 ---
 
-## Roadmap
+## Try it with no money and no live network
 
-The stonkbrokers-style mechanics are a layer **on top of** $PONS. $PONS is the
-dividend currency; the NFTs are the thing that earns. Suggested build order —
-each stage is useful on its own:
+```bash
+npx hardhat node                                           # terminal 1
+npx hardhat run scripts/seed-local.js --network localhost  # terminal 2
+```
 
-1. **Broker NFT collection + ERC-6551 + seeding.** Each NFT gets its own on-chain
-   wallet, pre-loaded with $PONS at mint. This alone creates a redemption floor.
-2. **Dividend distributor.** Trading fees accrue to NFT holders. Use a
-   pull/claim accumulator — pushing to thousands of wallets is prohibitively
-   expensive in gas.
-3. **NFT AMM.** Instant buy/sell for NFTs against a pooled bonding curve. This is
-   the heaviest piece and the one that most needs an audit; on Ethereum and Base
-   an existing protocol (sudoswap v2) may be usable instead of writing one.
+Pick **Local EVM** in the app and paste a printed address:
 
-**Open decision blocking stage 1:** which chain, and where $PONS liquidity lives.
-That determines whether an existing NFT AMM and an ERC-6551 registry are already
-deployed, or whether both must be built from scratch.
+| Fixture | Result |
+|---|---|
+| `MaliciousToken` — "Rug Pull Inu" | **AVOID, 100/100** — mint, blacklist, pause, live owner, 70% concentration, fee control |
+| `PonsFamilyToken` — "$PONS" | Low score — no owner, no privileged functions |
 
 ---
+
+## About launching a token on Pons
+
+Two different paths, often confused:
+
+**Using the Pons Launchpad** (<https://www.ponsfamily.com/>) needs **no code at
+all**. It is a web form: connect wallet, fill in name/ticker/image, pay the
+creation fee. Reported mechanics: supply is a fixed **1,000,000,000** chosen by
+the platform, the token goes straight into a **Uniswap V3 pool paired with
+WETH**, liquidity is locked automatically, and the creator earns **70% of the 1%
+trading fee**. You do **not** supply the ETH side of liquidity — buyers do.
+
+**Deploying independently** is what `contracts/PonsFamilyToken.sol` is for. There
+you choose the supply, and you *do* fund the paired asset yourself — that capital
+is what gives the token a price. After creating the pool, lock or burn the LP
+tokens; withdrawable LP is the biggest trust problem a new token has.
+
+> The Pons figures above come from third-party reporting, not from reading the
+> official docs directly. **Verify at <https://docs.ponsfamily.com/> before
+> paying anything.**
+
+### "Can I build the stonkbrokers system this way?"
+
+No — not through a launchpad. Pons produces a plain fungible token in a Uniswap
+pool. The stonkbrokers model is a separate custom-contract build layered *on top*
+of a token: an NFT collection where each NFT owns a real wallet (ERC-6551) seeded
+with tokens at mint, an AMM for the NFTs, and a distributor that pays trading
+fees to NFT holders as dividends. Robinhood Chain allows permissionless
+deployment (chain ID **4663**), so it is possible — but it is a serious contract
+project that needs an audit, and it only pays off once a token has real trading
+volume behind it.
+
+---
+
+## ⚠️ Verify the Pons contract addresses
+
+`agent/lib/chains.js` ships the Pons factory / router / quoter / WETH addresses
+transcribed from third-party reporting. **Check each against the official docs and
+the block explorer, then override them via `.env`.** A wrong or lookalike router
+address is a classic way wallets get drained — and `ponfamily.com` (no "s") is not
+the real site. Type domains manually.
+
+Pons is not affiliated with Robinhood.
+
+---
+
+## Security
+
+- The engine is **read-only**: nothing here signs a transaction, holds a private
+  key, or spends funds. Trading and launching happen in the user's own wallet.
+- `PRIVATE_KEY` in the root `.env` is only for *deploying your own contract*. Use
+  a fresh wallet with only the gas it needs. Never paste a key into a chat, a
+  website, or a "support" DM.
+- `SESSION_SECRET` signs login cookies. Rotating it invalidates all sessions.
 
 ## License
 

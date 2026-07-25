@@ -1,0 +1,554 @@
+/*
+ * Pons Sentinel — visual system.
+ *
+ * This page deliberately commits to a single dark look: it is a trading-desk
+ * tool, read in one context. Values are taken from the validated reference
+ * palette so contrast is known rather than guessed.
+ *
+ * Status colors (good/warning/serious/critical) are FIXED and never themed.
+ * They all clear 3:1 on the dark surface, but `serious` and `warning` sit close
+ * to each other in hue — so every status is rendered with an ICON AND A TEXT
+ * LABEL. Color never carries meaning on its own here.
+ */
+
+:root {
+  color-scheme: dark;
+
+  /* Surfaces & ink */
+  --page: #0d0d0d;
+  --surface-1: #1a1a19;
+  --surface-2: #222221;
+  --text-primary: #ffffff;
+  --text-secondary: #c3c2b7;
+  --text-muted: #898781;
+  --hairline: #2c2c2a;
+  --baseline: #383835;
+  --ring: rgba(255, 255, 255, 0.1);
+
+  /* Status palette — fixed, never themed */
+  --status-good: #0ca30c;
+  --status-warning: #fab219;
+  --status-serious: #ec835a;
+  --status-critical: #d03b3b;
+
+  /* Single sequential hue for magnitude bars */
+  --bar: #3987e5;
+  --bar-dim: #1c5cab;
+
+  --font-sans: system-ui, -apple-system, "Segoe UI", sans-serif;
+  --font-mono: ui-monospace, "SF Mono", Menlo, Consolas, monospace;
+}
+
+* {
+  box-sizing: border-box;
+}
+
+html,
+body {
+  margin: 0;
+  padding: 0;
+}
+
+body {
+  background: var(--page);
+  color: var(--text-primary);
+  font-family: var(--font-sans);
+  -webkit-font-smoothing: antialiased;
+  line-height: 1.5;
+}
+
+/* Subtle grid backdrop — recessive, never competing with data. */
+body::before {
+  content: "";
+  position: fixed;
+  inset: 0;
+  z-index: -1;
+  pointer-events: none;
+  background-image: linear-gradient(var(--hairline) 1px, transparent 1px),
+    linear-gradient(90deg, var(--hairline) 1px, transparent 1px);
+  background-size: 64px 64px;
+  opacity: 0.35;
+  mask-image: radial-gradient(ellipse 80% 60% at 50% 0%, #000 30%, transparent 75%);
+}
+
+.shell {
+  max-width: 940px;
+  margin: 0 auto;
+  padding: 28px 20px 80px;
+}
+
+/* ---------- Header ---------- */
+
+.topbar {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 16px;
+  flex-wrap: wrap;
+  padding-bottom: 20px;
+  border-bottom: 1px solid var(--hairline);
+}
+
+.brand {
+  display: flex;
+  align-items: baseline;
+  gap: 10px;
+}
+
+.brand-mark {
+  font-family: var(--font-mono);
+  font-size: 20px;
+  font-weight: 700;
+  letter-spacing: -0.02em;
+}
+
+.brand-mark span {
+  color: var(--bar);
+}
+
+.brand-sub {
+  font-size: 12px;
+  color: var(--text-muted);
+}
+
+.user {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  font-size: 13px;
+  color: var(--text-secondary);
+}
+
+.avatar {
+  width: 28px;
+  height: 28px;
+  border-radius: 50%;
+  border: 1px solid var(--ring);
+}
+
+/* ---------- Buttons ---------- */
+
+.btn {
+  font-family: inherit;
+  font-size: 14px;
+  font-weight: 600;
+  padding: 9px 16px;
+  border-radius: 8px;
+  border: 1px solid var(--ring);
+  background: var(--surface-2);
+  color: var(--text-primary);
+  cursor: pointer;
+  transition: background 120ms ease, border-color 120ms ease;
+}
+
+.btn:hover:not(:disabled) {
+  background: #2b2b29;
+  border-color: rgba(255, 255, 255, 0.2);
+}
+
+.btn:disabled {
+  opacity: 0.5;
+  cursor: not-allowed;
+}
+
+.btn-x {
+  background: var(--text-primary);
+  color: #000;
+  border-color: transparent;
+  display: inline-flex;
+  align-items: center;
+  gap: 8px;
+}
+
+.btn-x:hover:not(:disabled) {
+  background: #e6e6e6;
+  border-color: transparent;
+}
+
+.btn-primary {
+  background: var(--bar);
+  border-color: transparent;
+}
+
+.btn-primary:hover:not(:disabled) {
+  background: #2a78d6;
+  border-color: transparent;
+}
+
+.btn-ghost {
+  background: transparent;
+  font-weight: 500;
+  font-size: 13px;
+  padding: 6px 10px;
+}
+
+/* ---------- Hero / intro ---------- */
+
+.hero {
+  padding: 44px 0 28px;
+}
+
+.hero h1 {
+  font-size: clamp(28px, 5vw, 42px);
+  line-height: 1.1;
+  letter-spacing: -0.03em;
+  margin: 0 0 14px;
+}
+
+.hero p {
+  color: var(--text-secondary);
+  font-size: 16px;
+  max-width: 62ch;
+  margin: 0 0 8px;
+}
+
+.hero .fine {
+  color: var(--text-muted);
+  font-size: 13px;
+  max-width: 62ch;
+}
+
+/* ---------- Audit form ---------- */
+
+.panel {
+  background: var(--surface-1);
+  border: 1px solid var(--hairline);
+  border-radius: 12px;
+  padding: 18px;
+  margin-top: 20px;
+}
+
+.form-row {
+  display: flex;
+  gap: 10px;
+  flex-wrap: wrap;
+}
+
+.input {
+  flex: 1 1 320px;
+  min-width: 0;
+  font-family: var(--font-mono);
+  font-size: 14px;
+  padding: 11px 13px;
+  border-radius: 8px;
+  border: 1px solid var(--hairline);
+  background: var(--page);
+  color: var(--text-primary);
+}
+
+.input:focus {
+  outline: 2px solid var(--bar);
+  outline-offset: -1px;
+  border-color: transparent;
+}
+
+.select {
+  font-family: inherit;
+  font-size: 14px;
+  padding: 11px 13px;
+  border-radius: 8px;
+  border: 1px solid var(--hairline);
+  background: var(--page);
+  color: var(--text-primary);
+}
+
+.form-note {
+  margin-top: 10px;
+  font-size: 12px;
+  color: var(--text-muted);
+}
+
+/* ---------- Alerts ---------- */
+
+.alert {
+  margin-top: 16px;
+  padding: 12px 14px;
+  border-radius: 8px;
+  font-size: 13px;
+  border: 1px solid var(--ring);
+  background: var(--surface-1);
+  color: var(--text-secondary);
+  display: flex;
+  gap: 10px;
+}
+
+.alert strong {
+  color: var(--text-primary);
+}
+
+.alert-icon {
+  flex-shrink: 0;
+  font-weight: 700;
+}
+
+.alert-warn .alert-icon {
+  color: var(--status-warning);
+}
+
+.alert-error .alert-icon {
+  color: var(--status-critical);
+}
+
+/* ---------- Result: hero risk tile ---------- */
+
+.result {
+  margin-top: 24px;
+}
+
+.token-head {
+  display: flex;
+  justify-content: space-between;
+  align-items: flex-start;
+  gap: 16px;
+  flex-wrap: wrap;
+  padding-bottom: 16px;
+  border-bottom: 1px solid var(--hairline);
+}
+
+.token-name {
+  font-size: 20px;
+  font-weight: 650;
+  letter-spacing: -0.01em;
+  margin: 0;
+}
+
+.token-meta {
+  font-family: var(--font-mono);
+  font-size: 12px;
+  color: var(--text-muted);
+  margin-top: 4px;
+  word-break: break-all;
+}
+
+.token-meta a {
+  color: var(--bar);
+  text-decoration: none;
+}
+
+.token-meta a:hover {
+  text-decoration: underline;
+}
+
+/* The score is a headline figure, not a chart: one number, its label, its icon. */
+.score-tile {
+  display: flex;
+  align-items: center;
+  gap: 18px;
+  padding: 22px 0;
+}
+
+.score-figure {
+  font-size: 60px;
+  font-weight: 700;
+  line-height: 1;
+  letter-spacing: -0.04em;
+}
+
+.score-figure small {
+  font-size: 20px;
+  font-weight: 500;
+  color: var(--text-muted);
+  letter-spacing: 0;
+}
+
+.score-verdict {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  font-size: 18px;
+  font-weight: 650;
+}
+
+.score-blurb {
+  font-size: 13px;
+  color: var(--text-secondary);
+  margin-top: 4px;
+}
+
+.score-icon {
+  font-size: 20px;
+  line-height: 1;
+}
+
+/* ---------- Findings ---------- */
+
+.section-title {
+  font-size: 12px;
+  font-weight: 650;
+  letter-spacing: 0.08em;
+  text-transform: uppercase;
+  color: var(--text-muted);
+  margin: 28px 0 12px;
+}
+
+.finding {
+  display: grid;
+  grid-template-columns: 20px 92px 1fr;
+  gap: 10px;
+  align-items: start;
+  padding: 11px 0;
+  border-top: 1px solid var(--hairline);
+  font-size: 14px;
+}
+
+.finding-icon {
+  font-weight: 700;
+  text-align: center;
+}
+
+/* The label is text, so severity is never conveyed by color alone. */
+.finding-label {
+  font-family: var(--font-mono);
+  font-size: 11px;
+  font-weight: 700;
+  letter-spacing: 0.06em;
+  padding-top: 2px;
+}
+
+.finding-title {
+  font-weight: 550;
+}
+
+.finding-detail {
+  color: var(--text-secondary);
+  font-size: 13px;
+  margin-top: 3px;
+}
+
+.sev-critical {
+  color: var(--status-critical);
+}
+.sev-high {
+  color: var(--status-serious);
+}
+.sev-medium {
+  color: var(--status-warning);
+}
+.sev-low {
+  color: var(--text-muted);
+}
+.sev-good {
+  color: var(--status-good);
+}
+.sev-info {
+  color: var(--text-muted);
+}
+
+/* ---------- Holder bars (single-series magnitude) ---------- */
+
+.bars {
+  display: flex;
+  flex-direction: column;
+  /* 2px of surface between adjacent bars keeps fills from touching. */
+  gap: 2px;
+}
+
+.bar-row {
+  display: grid;
+  grid-template-columns: 62px 1fr;
+  gap: 12px;
+  align-items: center;
+  padding: 3px 0;
+  cursor: default;
+}
+
+.bar-value {
+  font-family: var(--font-mono);
+  font-variant-numeric: tabular-nums;
+  font-size: 12px;
+  text-align: right;
+  color: var(--text-secondary);
+}
+
+.bar-track {
+  position: relative;
+  height: 16px;
+  display: flex;
+  align-items: center;
+  gap: 8px;
+}
+
+.bar-fill {
+  height: 10px;
+  /* Anchored to the baseline at 0; rounded only on the data end. */
+  border-radius: 0 4px 4px 0;
+  background: var(--bar);
+  min-width: 2px;
+  transition: filter 120ms ease;
+}
+
+.bar-row:hover .bar-fill {
+  filter: brightness(1.25);
+}
+
+.bar-label {
+  font-family: var(--font-mono);
+  font-size: 11px;
+  color: var(--text-muted);
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+
+.bar-row:hover .bar-label {
+  color: var(--text-secondary);
+}
+
+/* ---------- Footer ---------- */
+
+.disclaimer {
+  margin-top: 40px;
+  padding-top: 18px;
+  border-top: 1px solid var(--hairline);
+  font-size: 12px;
+  color: var(--text-muted);
+}
+
+.disclaimer p {
+  margin: 0 0 8px;
+  max-width: 78ch;
+}
+
+.spinner {
+  display: inline-block;
+  width: 13px;
+  height: 13px;
+  border: 2px solid rgba(255, 255, 255, 0.25);
+  border-top-color: var(--text-primary);
+  border-radius: 50%;
+  animation: spin 700ms linear infinite;
+  vertical-align: -2px;
+  margin-right: 7px;
+}
+
+@keyframes spin {
+  to {
+    transform: rotate(360deg);
+  }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .spinner {
+    animation-duration: 2s;
+  }
+  * {
+    transition: none !important;
+  }
+}
+
+@media (max-width: 560px) {
+  .finding {
+    grid-template-columns: 18px 1fr;
+  }
+  .finding-label {
+    display: none;
+  }
+  /* Keep the text label visible on small screens by folding it into the title. */
+  .finding-title::before {
+    content: attr(data-sev) " · ";
+    font-family: var(--font-mono);
+    font-size: 11px;
+    letter-spacing: 0.06em;
+    color: inherit;
+  }
+}
