@@ -34,8 +34,20 @@ export async function GET(request) {
   try {
     address = deriveAddress(session.id);
   } catch (error) {
-    // Almost always a missing WALLET_DERIVATION_SECRET — say so plainly.
-    return NextResponse.json({ error: error.message }, { status: 500 });
+    // Almost always a missing (or too-short) WALLET_DERIVATION_SECRET. The raw
+    // message is a developer note with shell commands in it; the client gets a
+    // clean one plus a code it can render as a setup hint.
+    const missingSecret = /WALLET_DERIVATION_SECRET/.test(error.message || "");
+    return NextResponse.json(
+      {
+        error: missingSecret
+          ? "Wallets are not set up on this deployment yet."
+          : error.message,
+        code: missingSecret ? "wallet_not_configured" : "wallet_error",
+        missing: missingSecret ? ["WALLET_DERIVATION_SECRET"] : [],
+      },
+      { status: 500 }
+    );
   }
 
   let balance = null;
