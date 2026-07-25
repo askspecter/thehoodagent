@@ -347,9 +347,8 @@ export default function Terminal({ network, user, onNavigate, onSignIn }) {
           <span className="cursor" />
         </h1>
         <p>
-          <code>buy me $5 nvda</code> is a complete instruction. The ticker resolves against the
-          live launch feed, dollars convert at the current ETH rate, and the pool quotes the fill
-          before anything is signed. Nothing is ever sent from a typed line alone.
+          <code>buy me $5 nvda</code> — plain language. It quotes the fill first, and never sends
+          from a typed line alone.
         </p>
       </section>
 
@@ -429,10 +428,8 @@ export default function Terminal({ network, user, onNavigate, onSignIn }) {
       </div>
 
       <p className="form-note term-foot">
-        Quotes come from the pool's own quoter and are simulated before signing, so a bad trade
-        costs nothing. A quote is not a guarantee: price moves between the quote and the fill, and
-        a clean quote says nothing about whether the token is worth owning. Run <code>audit</code>{" "}
-        before you buy anything you have not checked.
+        Simulated before signing, so a bad trade costs nothing — but a quote is not a guarantee.
+        Run <code>audit</code> before you buy.
       </p>
     </>
   );

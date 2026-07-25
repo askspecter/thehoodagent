@@ -2497,3 +2497,63 @@ code, .field-type {
     linear-gradient(90deg, var(--lime), var(--lime-dim));
   padding-left: 25px;
 }
+
+/* ============================================================================
+ * Remove the title bar (user request) + tidy the mobile layout.
+ * ==========================================================================*/
+
+/* No more CABLE.EXE title strip — the wordmark carries the brand now. */
+.shell::before {
+  content: none !important;
+  display: none !important;
+}
+.shell {
+  padding-top: 4px !important;
+}
+
+@media (max-width: 560px) {
+  .desktop {
+    padding: 8px 6px 26px;
+  }
+  .shell {
+    margin: 8px auto 26px;
+    padding: 4px !important;
+  }
+  .topbar {
+    padding: 8px !important;
+    margin-bottom: 4px;
+  }
+  .brand-mark {
+    font-size: 13px;
+  }
+  .hero {
+    padding: 16px 2px 10px;
+  }
+  .hero-tight {
+    padding: 12px 2px 8px;
+  }
+  .hero h1 {
+    font-size: clamp(23px, 8.5vw, 32px);
+  }
+  .hero p {
+    font-size: 12px;
+  }
+  /* The empty terminal screen was a huge void on a phone — tighten it. */
+  .term-screen {
+    min-height: 24vh !important;
+  }
+  /* Drop the long explainer under the terminal on small screens. */
+  .term-foot {
+    display: none;
+  }
+  .disclaimer,
+  footer.disclaimer {
+    font-size: 10px !important;
+    padding: 6px 8px !important;
+  }
+  /* Slippage control wraps under the terminal caption instead of crowding it. */
+  .console-bar {
+    flex-wrap: wrap;
+    gap: 6px;
+  }
+}
