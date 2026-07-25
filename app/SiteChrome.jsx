@@ -16,8 +16,6 @@ import { AUTH_ERRORS, AuthProblem, DESTINATIONS, EXTERNAL_LINKS, TAPE, XLogo } f
  * and the menu but drop the tabs, so they read as their own thing.
  */
 
-const APP_KEYS = new Set(DESTINATIONS.map((d) => d.key));
-
 /** The sign-in failure notice. Reads the query with `window` so the header does
  *  not need a Suspense boundary the way `useSearchParams` would. */
 function AuthNotice() {
@@ -48,7 +46,6 @@ export default function SiteChrome() {
 
   // "/terminal" → "terminal"; "/" → "home".
   const activeKey = pathname === "/" ? "home" : pathname.split("/")[1];
-  const onAppRoute = APP_KEYS.has(activeKey);
   const isLegal = activeKey === "privacy" || activeKey === "terms";
 
   return (
@@ -129,32 +126,34 @@ export default function SiteChrome() {
         </div>
       </header>
 
-      {onAppRoute && (
-        <nav className="nav">
-          {DESTINATIONS.map(({ key, label, href }) => (
-            <Link
-              key={key}
-              className={`nav-tab ${activeKey === key ? "nav-on" : ""}`}
-              href={href}
-              aria-current={activeKey === key ? "page" : undefined}
-            >
-              {label}
-            </Link>
-          ))}
-          <span className="nav-spacer" />
-          {EXTERNAL_LINKS.map((link) => (
-            <a
-              key={link.href}
-              className="nav-tab nav-ext"
-              href={link.href}
-              target="_blank"
-              rel="noopener noreferrer"
-            >
-              {link.label} <span aria-hidden="true">↗</span>
-            </a>
-          ))}
-        </nav>
-      )}
+      {/* The nav strip is the desktop navigation on every route, including the
+          landing. Below the breakpoint the ⋮ sheet replaces it (CSS), so the two
+          are never both on screen. It used to be hidden on the landing, which is
+          why the Terminal/Launches tabs went missing there on desktop. */}
+      <nav className="nav">
+        {DESTINATIONS.map(({ key, label, href }) => (
+          <Link
+            key={key}
+            className={`nav-tab ${activeKey === key ? "nav-on" : ""}`}
+            href={href}
+            aria-current={activeKey === key ? "page" : undefined}
+          >
+            {label}
+          </Link>
+        ))}
+        <span className="nav-spacer" />
+        {EXTERNAL_LINKS.map((link) => (
+          <a
+            key={link.href}
+            className="nav-tab nav-ext"
+            href={link.href}
+            target="_blank"
+            rel="noopener noreferrer"
+          >
+            {link.label} <span aria-hidden="true">↗</span>
+          </a>
+        ))}
+      </nav>
 
       <AuthNotice />
       </div>
