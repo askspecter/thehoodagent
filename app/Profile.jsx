@@ -18,6 +18,7 @@ export default function Profile({ network, user, onSignIn, onNavigate }) {
   const [ethUsd, setEthUsd] = useState(null);
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState(null);
+  const [walletError, setWalletError] = useState(null);
 
   // Wallet actions, moved here from the old separate Wallet tab.
   const [copied, setCopied] = useState(false);
@@ -38,7 +39,17 @@ export default function Profile({ network, user, onSignIn, onNavigate }) {
 
       if (user) {
         const res = await fetch(`/api/wallet?network=${encodeURIComponent(network)}`);
-        if (res.ok) setWallet(await res.json());
+        const json = await res.json().catch(() => ({}));
+        if (res.ok) {
+          setWallet(json);
+          setWalletError(null);
+        } else {
+          // The X wallet failing is almost always a missing deployment secret.
+          // Carry the reason so the card explains itself rather than just
+          // reading "unavailable".
+          setWallet(null);
+          setWalletError(json);
+        }
       }
 
       // With neither identity there is nothing to price, and asking anyway just
@@ -180,6 +191,13 @@ export default function Profile({ network, user, onSignIn, onNavigate }) {
                     {wallet.balance
                       ? fmtEth(Number(wallet.balance.formatted), { symbol: "ETH" })
                       : "—"}
+                  </div>
+                </>
+              ) : walletError?.code === "wallet_not_configured" ? (
+                <>
+                  <div className="prof-id-main prof-id-off">not set up</div>
+                  <div className="stat-sub">
+                    Set <code>WALLET_DERIVATION_SECRET</code> on the deployment, then redeploy.
                   </div>
                 </>
               ) : (
