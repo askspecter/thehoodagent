@@ -2,10 +2,14 @@
 
 **Find out if you can sell a token — before you buy it.**
 
-A token auditor for [Robinhood Chain](https://docs.robinhood.com/chain/) and the
-[pons launchpad](https://www.ponsfamily.com/). Sign in with X, paste a contract
-address, and get a risk report built from what the chain actually says — including
-a simulated buy-and-sell round trip that detects honeypots without spending
+A trading terminal, launchpad and token auditor for
+[Robinhood Chain](https://docs.robinhood.com/chain/) and the
+[pons launchpad](https://www.ponsfamily.com/).
+
+Type `buy me $5 pons` and it resolves the ticker against the live launch feed,
+converts the dollars at the current ETH rate, quotes the fill through the real
+pool, and hands you a plan to confirm. Paste a contract address instead and it
+runs a simulated buy-and-sell round trip that detects honeypots without spending
 anything.
 
 The Next.js app is at the **repository root**, so Vercel deploys it with no
@@ -42,10 +46,15 @@ The engine runs on the server rather than in the browser on purpose: it keeps th
 RPC endpoint and any API keys out of client code, and one warm connection serves
 every visitor.
 
-**When trading and launching are added, the split changes in one specific way:**
-reading stays on the server, but *signing* happens in the visitor's own wallet in
-their browser. A private key never reaches the server. That is not a limitation —
-it is the only correct design.
+**Trading and creating split differently.** Reading stays on the server; *signing*
+happens in the visitor's own browser wallet, and no private key reaches the
+server. There is one deliberate exception: a visitor signed in with X can have
+the server sign with the wallet derived from their X account
+(`POST /api/terminal/execute`), because a phone browser has no wallet extension
+and without it the terminal could price a trade it could never fill. That route
+derives the wallet from the session, sets the recipient to that same address,
+re-quotes before every send, and dry-runs with `staticCall` first — nothing about
+the trade is taken from the request except which token and how much.
 
 ---
 
@@ -58,10 +67,74 @@ it is the only correct design.
 | `lib/session.js` | HMAC-signed cookie sessions for X sign-in. |
 | `contracts/PonsFamilyToken.sol` | A fixed-supply ERC-20, if you deploy a token *independently* of pons. |
 | `contracts/mocks/MaliciousToken.sol` | Test fixture full of rug patterns — target practice proving the scanner fires. |
-| `test/` | 28 tests. Runs the engine against real bytecode on an in-process EVM. |
+| `test/terminal.test.js` | 33 tests for the terminal grammar, ticker resolution and trade sizing. Pure — no EVM needed. |
+| `test/auditEngine.test.js` | Runs the engine against real bytecode on an in-process EVM. |
 
 Hardhat and Next.js share one `package.json`. `npm test` runs the contract and
 engine tests; `npm run build` builds the site. They do not interfere.
+
+---
+
+## The terminal
+
+One input. `buy me $5 nvda` is a complete instruction — the terminal resolves the
+ticker, converts the dollars, quotes the fill and shows a plan. Nothing is ever
+sent from a typed line alone; every trade lands as a card you confirm, with the
+worst case at your slippage tolerance written on it.
+
+| Command | What it does |
+|---|---|
+| `buy $5 pons` | Buy five dollars' worth. A bare number is dollars. |
+| `buy 0.01 eth pons` | Name the unit to spend ETH instead. |
+| `sell all pons` | Sell the whole position. `sell 50% pons` and `sell 1000 pons` work too. |
+| `price pons` | Live pool price, market cap, supply, graduation progress. |
+| `audit 0x…` | Jumps to the full honeypot and owner-power scan. |
+| `create HOOD Hood Rat` | Opens the create form with the ticker and name filled in. |
+| `balance` / `portfolio` | Your wallet, and every launch it holds, priced. |
+| `list` | The launch feed, biggest market cap first. |
+
+`↑`/`↓` walks your history, `Tab` completes a verb, and every command in `help`
+runs itself when clicked.
+
+**Two decisions worth knowing about**, both in `lib/engine/terminal.js`:
+
+- **A bare number on a buy means dollars.** `buy 5 pons` is five dollars, not five
+  ETH. The ambiguity has to resolve somewhere, and the expensive direction is ETH,
+  so ETH is never assumed — it has to be said. Selling is the mirror: a bare
+  number is a quantity of tokens.
+- **A duplicate ticker is never guessed.** Ticker squatting is normal on a
+  permissionless launchpad, so when more than one launch answers to a name the
+  terminal lists the candidates and makes you pick an address. Buying the wrong
+  token is unrecoverable.
+
+Signing goes through your browser wallet when you have one. When you do not —
+which on a phone is nearly always — a visitor signed in with X can sign with the
+wallet their X account mints. See the note in **How the agent runs** for what that
+route does and does not trust.
+
+---
+
+## Prices in dollars
+
+The pool holds WETH, so WETH is what the engine computes: a launch prices at
+something like `0.0000000028 WETH` and caps at `2.8 WETH`. Both figures are true
+and neither is readable — `Ξ2.8` does not tell you whether this is a
+two-thousand-dollar token or a two-million-dollar one.
+
+Every price and market cap is therefore converted to USD, with the WETH figure
+kept underneath and the exact value in the element's tooltip. Prices below
+`$0.001` use the leading-zero-count notation (`$0.0₈2845` = `$0.000000002845`)
+because eight zeros in a row cannot be counted by eye.
+
+The rate is fetched from Coinbase, with CoinGecko as a fallback, cached for 60
+seconds and shared across routes. **If no source can be reached the UI falls back
+to WETH** rather than inventing a number. `ETH_USD_PRICE` pins it for offline
+development.
+
+The underlying maths was also wrong in two ways that are now fixed and tested:
+the pool price is squared in BigInt rather than in a double that had already
+rounded to 53 bits, and market cap uses the token's live `totalSupply()` and
+`decimals()` instead of the factory's mint-time figure with 18 decimals assumed.
 
 ---
 
@@ -144,20 +217,25 @@ gating it behind sign-in would only fail the person who most needs it — someon
 about to buy a token they have not checked. Anonymous visitors get 5 audits per
 minute (throttled by IP); signing in with X raises that to 15.
 
-If `X_CLIENT_ID` / `X_REDIRECT_URI` are absent, the sign-in button simply does not
-render — no "not configured" notice, because that reads as a broken site to a
-visitor. Set them when you want sign-in.
+The sign-in button always renders. If the credentials behind it are absent,
+pressing it returns you to the app with a panel naming the missing variables and
+printing the callback URL to register with X — the button used to answer with a
+raw JSON error page instead, which is indistinguishable from a broken site.
 
 Variables (Settings → Environment Variables):
 
-| Variable | Value |
-|---|---|
-| `SESSION_SECRET` | `node -e "console.log(require('crypto').randomBytes(32).toString('hex'))"` |
-| `X_CLIENT_ID` | from your X app |
-| `X_CLIENT_SECRET` | from your X app |
-| `X_REDIRECT_URI` | `https://<your-domain>/api/auth/x/callback` |
-| `ROBINHOOD_RPC` | optional; a private RPC avoids public rate limits |
-| `AUDIT_MAX_BLOCKS` | optional; lower it if audits time out |
+| Variable | Required for | Value |
+|---|---|---|
+| `SESSION_SECRET` | sign-in | `node -e "console.log(require('crypto').randomBytes(32).toString('hex'))"` |
+| `X_CLIENT_ID` | sign-in | from your X app |
+| `X_CLIENT_SECRET` | sign-in | from your X app |
+| `WALLET_DERIVATION_SECRET` | X wallets, terminal trading without an extension | another 32+ byte random string — **set once, never rotate** |
+| `X_REDIRECT_URI` | — | optional; derived from the request unless your public URL differs |
+| `APP_ORIGIN` | — | optional; same reasoning as above |
+| `ETH_USD_PRICE` | — | optional; pins the USD rate instead of fetching it |
+| `ROBINHOOD_RPC` | — | optional; a private RPC avoids public rate limits |
+| `LAUNCH_SCAN_BLOCKS` | — | optional; how far back the launch feed scans |
+| `AUDIT_MAX_BLOCKS` | — | optional; lower it if audits time out |
 
 ### Debugging a Vercel 404
 
@@ -178,6 +256,10 @@ when Vercel builds a directory that has no Next.js app in it.
   on Vercel's default function timeout you may need to lower `AUDIT_MAX_BLOCKS`.
 - **Rate limiting is in-memory**, so it resets on cold starts and does not span
   instances. Move it to Redis before real traffic.
+- **The USD rate is an outbound HTTPS call** to Coinbase or CoinGecko, cached for
+  60 seconds per instance. If your host blocks outbound requests, set
+  `ETH_USD_PRICE`; without it the UI shows WETH figures instead of dollars, which
+  is a degraded display and not an error.
 
 ---
 
@@ -192,8 +274,20 @@ when Vercel builds a directory that has no Next.js app in it.
    - `https://<your-domain>/api/auth/x/callback`
 5. Scopes: `users.read`, `tweet.read`.
 
-`X_REDIRECT_URI` must match what X has registered **exactly**, including scheme
-and path. A mismatch is the most common cause of `token_exchange_failed`.
+Then set `X_CLIENT_ID`, `X_CLIENT_SECRET` and `SESSION_SECRET`. On Vercel these go
+under **Settings → Environment Variables**, and a redeploy is needed before they
+take effect.
+
+**You do not need to set `X_REDIRECT_URI`.** The callback URL is derived from the
+incoming request, so it is already right on localhost and on Vercel. Set it only
+if the app is served on a public URL the request headers do not report — and then
+it must match what X has registered **exactly**, including scheme and path. A
+mismatch is the most common cause of `token_exchange_failed`.
+
+If anything is missing, the sign-in button returns you to the app with a panel
+that names the missing variables and prints the exact callback URL this
+deployment will send to X. `GET /api/auth/me` reports the same thing as JSON.
+Everything except the wallet and the create form works without signing in.
 
 The app stores only your X id, handle, display name and avatar, and deliberately
 **discards the access token** after reading your profile — it never posts on your

@@ -102,7 +102,7 @@ export default function TradePanel({ network, token: initialToken }) {
       const res = await fetch("/api/quote", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ token: token.trim(), side, amount, network }),
+        body: JSON.stringify({ token: token.trim(), side, amount, network, slippage }),
       });
       const json = await res.json();
       if (!res.ok) setError(json.error || "Could not quote this trade.");
@@ -112,7 +112,7 @@ export default function TradePanel({ network, token: initialToken }) {
     } finally {
       setQuoting(false);
     }
-  }, [token, amount, side, network]);
+  }, [token, amount, side, network, slippage]);
 
   const doConnect = useCallback(async () => {
     setError(null);
@@ -313,7 +313,13 @@ export default function TradePanel({ network, token: initialToken }) {
               <button
                 key={s}
                 className={`btn btn-ghost ${slippage === s ? "nav-on" : ""}`}
-                onClick={() => setSlippage(s)}
+                onClick={() => {
+                  setSlippage(s);
+                  // The quote carries the floor that goes on screen, so a
+                  // changed tolerance invalidates it rather than silently
+                  // leaving the old "minimum out" next to a new percentage.
+                  setQuote(null);
+                }}
               >
                 {s}%
               </button>

@@ -3,8 +3,12 @@
 import { useCallback, useEffect, useState } from "react";
 import LaunchFeed from "./LaunchFeed";
 import LaunchForm from "./LaunchForm";
+import Menu from "./Menu";
+import Profile from "./Profile";
+import Terminal from "./Terminal";
 import TradePanel from "./TradePanel";
 import WalletPanel from "./WalletPanel";
+import { fmtEth, fmtUsdPrice, fullNumber, usdOr } from "./format";
 
 /**
  * Severity presentation. Each entry pairs a color with an ICON and a TEXT LABEL,
@@ -34,14 +38,18 @@ const VERDICT = {
  */
 const EXAMPLE_TOKEN = "0x39dBED3a2bd333467115dE45665cC57F813C4571";
 
-/** Scrolling command tape. Rendered twice so the marquee loops seamlessly. */
+/**
+ * Scrolling command tape. Rendered twice so the marquee loops seamlessly.
+ * Every line is a command the terminal actually accepts — a tape advertising
+ * something you cannot then type would be a lie in the furniture.
+ */
 const TAPE = [
+  ["buy me $5 pons", "resolves the ticker, converts the dollars"],
+  ["sell all pons", "reads the balance, quotes the exit"],
+  ["price pons", "live pool price · market cap"],
   ["audit", "0x39dB…4571"],
-  ["simulate sell", "0.01 WETH round trip"],
-  ["scan", "mint · blacklist · pause"],
-  ["holders", "top 10 concentration"],
-  ["launch state", "graduation · fee split"],
-  ["verify", "deployed by pons?"],
+  ["portfolio", "every launch you hold, priced"],
+  ["create HOOD", "fixed supply · locked WETH pool"],
 ];
 
 const STEPS = [
@@ -96,29 +104,44 @@ const CAPS = [
     body: "Exact pool and fee tier from the deploying factory, graduation progress, creator fee split, payout wallet, and whether launch protection is still active.",
   },
   {
+    title: "Plain-language trading",
+    live: true,
+    body: "“buy me $5 nvda” is a complete instruction. The ticker resolves against the live feed, dollars convert at the current ETH rate, the pool quotes the fill, and you confirm a plan with the worst case written on it.",
+  },
+  {
     title: "Trade from the terminal",
     live: true,
-    body: "Buy and sell through the pons router against the token's own locked WETH pool. Quoted first, simulated second, signed in your own wallet — this site never holds your funds.",
+    body: "Buy and sell through the pons router against the token's own locked WETH pool. Quoted first, simulated second, signed either in your browser wallet or in the wallet your X account mints.",
   },
   {
     title: "Commands from X",
     live: false,
-    body: "Mention the bot in a post and have it act. Still to build: it needs a wallet the server can sign with while you are away, so the custody model has to be chosen first.",
+    body: "Mention the bot in a post and have it act. The custody half is now solved — an X account already has a wallet here — what is left is the listener and the confirmation flow.",
   },
   {
-    title: "Launch a token",
+    title: "Create a token",
     live: true,
     body: "Deploy through the pons factory — fixed 1B supply, WETH pool and locked liquidity in one transaction. The form is built from the factory's own verified ABI, so nothing about the call is guessed.",
   },
 ];
 
 const AUTH_ERRORS = {
+  not_configured: "X sign-in is not finished being set up on this deployment.",
   state_mismatch: "Sign-in expired or was tampered with. Please try again.",
   missing_code: "X did not return an authorization code.",
-  token_exchange_failed: "Could not exchange the code with X. Check X_CLIENT_ID / X_CLIENT_SECRET.",
+  token_exchange_failed:
+    "X refused the code exchange. Usually the callback URL registered with X does not match the one below, or X_CLIENT_SECRET is wrong.",
   profile_fetch_failed: "Signed in, but could not read your X profile.",
   access_denied: "You declined the X sign-in.",
   unexpected: "Something went wrong during sign-in.",
+};
+
+/** Where each variable comes from, so a broken sign-in names its own fix. */
+const ENV_HELP = {
+  X_CLIENT_ID: "developer.x.com → your project → Keys and tokens → OAuth 2.0 Client ID",
+  X_CLIENT_SECRET: "the same screen — the app must be a confidential “Web App” client",
+  SESSION_SECRET:
+    "any 32+ character random string: node -e \"console.log(require('crypto').randomBytes(32).toString('hex'))\"",
 };
 
 function XLogo() {
@@ -131,12 +154,13 @@ function XLogo() {
 
 export default function Home() {
   const [user, setUser] = useState(null);
-  const [authConfigured, setAuthConfigured] = useState(true);
+  const [setup, setSetup] = useState(null);
   const [sessionError, setSessionError] = useState(null);
   const [loadingSession, setLoadingSession] = useState(true);
 
-  const [view, setView] = useState("launches");
+  const [view, setView] = useState("terminal");
   const [tradeToken, setTradeToken] = useState("");
+  const [createPrefill, setCreatePrefill] = useState(null);
   const [feedNonce, setFeedNonce] = useState(0);
   const [address, setAddress] = useState("");
   const [network, setNetwork] = useState("robinhood");
@@ -157,11 +181,15 @@ export default function Home() {
       .then((r) => r.json())
       .then((data) => {
         setUser(data.user || null);
-        setAuthConfigured(Boolean(data.configured));
+        setSetup(data.setup || null);
         if (data.error) setSessionError(data.error);
       })
       .catch(() => setSessionError("Could not reach the server."))
       .finally(() => setLoadingSession(false));
+  }, []);
+
+  const signIn = useCallback(() => {
+    window.location.href = "/api/auth/x/login";
   }, []);
 
   /**
@@ -217,6 +245,29 @@ export default function Home() {
     window.scrollTo({ top: 0, behavior: "smooth" });
   }, []);
 
+  /**
+   * One place the terminal — and anything else — hands control to another view.
+   * Keeping it in a single callback is what stops `audit 0x…` from typing an
+   * address into the audit box on one path and running it on another.
+   */
+  const navigate = useCallback(
+    (intent) => {
+      if (!intent?.view) return;
+      if (intent.view === "trade" && intent.token) setTradeToken(intent.token);
+      if (intent.view === "create" && intent.prefill) setCreatePrefill(intent.prefill);
+      if (intent.view === "audit" && intent.token) {
+        setAddress(intent.token);
+        setView("audit");
+        window.scrollTo({ top: 0, behavior: "smooth" });
+        if (intent.runAudit) runAudit(intent.token);
+        return;
+      }
+      setView(intent.view);
+      window.scrollTo({ top: 0, behavior: "smooth" });
+    },
+    [runAudit]
+  );
+
   const logout = useCallback(async () => {
     await fetch("/api/auth/logout", { method: "POST" });
     setUser(null);
@@ -251,33 +302,121 @@ export default function Home() {
             <div className="brand-sub">ROBINHOOD CHAIN · CHAIN ID 4663</div>
           </div>
 
-          {loadingSession ? (
-            <span className="brand-sub">…</span>
-          ) : user ? (
-            <div className="user">
-              {user.avatar && <img className="avatar" src={user.avatar} alt="" />}
-              <span>@{user.username}</span>
-              <button className="btn btn-ghost" onClick={logout}>
-                Sign out
-              </button>
-            </div>
-          ) : (
-            /* Always rendered. Hiding it when credentials are absent made the
-               site look like it had no sign-in at all; if X is not configured
-               the route returns a clear setup error instead. */
-            <a className="btn btn-x" href="/api/auth/x/login">
-              <XLogo /> Sign in with X
-            </a>
-          )}
+          <div className="topbar-right">
+            {loadingSession ? (
+              <span className="brand-sub">…</span>
+            ) : user ? (
+              <div className="user">
+                {user.avatar && <img className="avatar" src={user.avatar} alt="" />}
+                <button className="user-handle" onClick={() => setView("profile")}>
+                  @{user.username}
+                </button>
+              </div>
+            ) : (
+              /* Always rendered. Hiding it when credentials are absent made the
+                 site look like it had no sign-in at all; if X is not configured
+                 the route now redirects back here with a setup panel. */
+              <a className="btn btn-x" href="/api/auth/x/login">
+                <XLogo /> Sign in with X
+              </a>
+            )}
+
+            <Menu
+              items={[
+                {
+                  key: "terminal",
+                  label: "Terminal",
+                  hint: "buy me $5 pons",
+                  icon: "▸",
+                  active: view === "terminal",
+                  onSelect: () => setView("terminal"),
+                },
+                {
+                  key: "launches",
+                  label: "Launches",
+                  hint: "the live feed",
+                  icon: "☰",
+                  active: view === "launches",
+                  onSelect: () => setView("launches"),
+                },
+                {
+                  key: "create",
+                  label: "Create",
+                  hint: "deploy a token",
+                  icon: "✦",
+                  active: view === "create",
+                  onSelect: () => setView("create"),
+                },
+                {
+                  key: "trade",
+                  label: "Trade",
+                  hint: "the manual form",
+                  icon: "⇄",
+                  active: view === "trade",
+                  onSelect: () => setView("trade"),
+                },
+                {
+                  key: "audit",
+                  label: "Audit",
+                  hint: "can you sell it?",
+                  icon: "✓",
+                  active: view === "audit",
+                  onSelect: () => setView("audit"),
+                },
+                {
+                  key: "profile",
+                  label: "Profile",
+                  hint: "your bags, priced",
+                  icon: "◉",
+                  active: view === "profile",
+                  onSelect: () => setView("profile"),
+                },
+                {
+                  key: "wallet",
+                  label: "Wallet",
+                  hint: "address · export key",
+                  icon: "◈",
+                  active: view === "wallet",
+                  onSelect: () => setView("wallet"),
+                },
+                ...(user
+                  ? [
+                      {
+                        key: "signout",
+                        label: "Sign out",
+                        hint: `@${user.username}`,
+                        icon: "⏻",
+                        onSelect: logout,
+                      },
+                    ]
+                  : []),
+              ]}
+              links={[
+                {
+                  href: "https://robinhoodchain.blockscout.com",
+                  label: "Explorer",
+                  icon: "⧉",
+                  hint: "Robinhood Chain on Blockscout",
+                },
+                {
+                  href: "https://ponsfamily.com",
+                  label: "ponsfamily.com",
+                  icon: "⧉",
+                  hint: "same factory, same pools",
+                },
+              ]}
+              footer="Not affiliated with Robinhood. Nothing here is financial advice."
+            />
+          </div>
         </header>
 
         <nav className="nav">
           {[
+            ["terminal", "Terminal"],
             ["launches", "Launches"],
-            ["launch", "Launch"],
+            ["create", "Create"],
             ["trade", "Trade"],
             ["audit", "Audit"],
-            ["wallet", "Wallet"],
           ].map(([key, label]) => (
             <button
               key={key}
@@ -290,6 +429,23 @@ export default function Home() {
           ))}
         </nav>
 
+        {authError && (
+          <AuthProblem
+            message={authError}
+            setup={setup}
+            onDismiss={() => setAuthError(null)}
+          />
+        )}
+
+        {view === "terminal" && (
+          <Terminal
+            network={network}
+            user={user}
+            onNavigate={navigate}
+            onSignIn={signIn}
+          />
+        )}
+
         {view === "launches" && (
           <LaunchFeed
             network={network}
@@ -299,11 +455,13 @@ export default function Home() {
           />
         )}
 
-        {view === "launch" && (
+        {view === "create" && (
           <LaunchForm
             network={network}
+            prefill={createPrefill}
             onLaunched={() => {
               setFeedNonce((n) => n + 1);
+              setCreatePrefill(null);
               setView("launches");
             }}
           />
@@ -311,14 +469,12 @@ export default function Home() {
 
         {view === "trade" && <TradePanel network={network} token={tradeToken} />}
 
+        {view === "profile" && (
+          <Profile network={network} user={user} onSignIn={signIn} onNavigate={navigate} />
+        )}
+
         {view === "wallet" && (
-          <WalletPanel
-            network={network}
-            user={user}
-            onSignIn={() => {
-              window.location.href = "/api/auth/x/login";
-            }}
-          />
+          <WalletPanel network={network} user={user} onSignIn={signIn} />
         )}
 
         {view === "audit" && (
@@ -349,13 +505,6 @@ export default function Home() {
           <span>
             <strong>Setup incomplete.</strong> {sessionError}
           </span>
-        </div>
-      )}
-
-      {authError && (
-        <div className="alert alert-error">
-          <span className="alert-icon">✖</span>
-          <span>{authError}</span>
         </div>
       )}
 
@@ -499,19 +648,68 @@ export default function Home() {
   );
 }
 
+/**
+ * A failed sign-in, explained.
+ *
+ * What a visitor used to get was the login route's raw JSON 500 rendered as
+ * plain text in the browser — a dead end that looked like the site was broken.
+ * The route now redirects back here, and this says which variable is missing and
+ * the exact callback URL to register with X, which is the other half of why
+ * sign-in fails in practice.
+ */
+function AuthProblem({ message, setup, onDismiss }) {
+  const missing = setup?.missing || [];
+
+  return (
+    <div className="alert alert-error auth-problem">
+      <span className="alert-icon">✖</span>
+      <div>
+        <strong>Could not sign in with X.</strong> {message}
+        {missing.length > 0 && (
+          <>
+            <div className="auth-problem-title">Not set on this deployment</div>
+            <ul className="auth-problem-list">
+              {missing.map((name) => (
+                <li key={name}>
+                  <code>{name}</code>
+                  {ENV_HELP[name] ? ` — ${ENV_HELP[name]}` : null}
+                </li>
+              ))}
+            </ul>
+          </>
+        )}
+        {setup?.callbackUrl && (
+          <>
+            <div className="auth-problem-title">Callback URL to register with X</div>
+            <div className="auth-problem-url">{setup.callbackUrl}</div>
+            <p className="form-note" style={{ marginTop: 6 }}>
+              It must match what X has registered exactly, including the scheme and path.{" "}
+              {setup.callbackSource === "derived"
+                ? "This was worked out from the request, so it already matches this deployment — set X_REDIRECT_URI only if you serve the app on a different public URL."
+                : "This came from X_REDIRECT_URI."}
+            </p>
+          </>
+        )}
+        <p className="form-note" style={{ marginTop: 6 }}>
+          On Vercel these live under Settings → Environment Variables, and a redeploy is needed
+          before they take effect. Everything except the wallet and the launch form works without
+          signing in.
+        </p>
+        <button className="btn btn-ghost" onClick={onDismiss} style={{ marginTop: 8 }}>
+          Dismiss
+        </button>
+      </div>
+    </div>
+  );
+}
+
 /** Live launch state read straight off the pons contracts. */
 function LaunchPanel({ launch, report }) {
   const grad = launch.graduation;
   const fees = launch.fees;
   const socials = launch.socials || {};
   const socialLinks = Object.entries(socials).filter(([, v]) => v && v.trim());
-
-  const fmt = (n, digits = 6) =>
-    n == null || !Number.isFinite(n)
-      ? "—"
-      : n < 0.000001
-        ? n.toExponential(2)
-        : n.toLocaleString(undefined, { maximumFractionDigits: digits });
+  const ethUsd = report.ethUsd ?? null;
 
   return (
     <>
@@ -523,13 +721,19 @@ function LaunchPanel({ launch, report }) {
       <div className="stats">
         <div className="stat">
           <div className="stat-label">Price</div>
-          <div className="stat-value">{fmt(launch.priceInWeth, 10)}</div>
-          <div className="stat-sub">WETH per token</div>
+          <div className="stat-value" title={fullNumber(launch.priceInWeth, "WETH")}>
+            {usdOr(launch.priceInWeth, ethUsd, fmtUsdPrice)}
+          </div>
+          <div className="stat-sub">{fmtEth(launch.priceInWeth)} per token</div>
         </div>
         <div className="stat">
           <div className="stat-label">Market cap</div>
-          <div className="stat-value">{fmt(launch.marketCapWeth, 3)}</div>
-          <div className="stat-sub">WETH · = FDV (fixed supply)</div>
+          <div className="stat-value" title={fullNumber(launch.marketCapWeth, "WETH")}>
+            {usdOr(launch.marketCapWeth, ethUsd)}
+          </div>
+          <div className="stat-sub">
+            {fmtEth(launch.marketCapWeth)} · = FDV (nothing vests)
+          </div>
         </div>
         <div className="stat">
           <div className="stat-label">Pool fee</div>

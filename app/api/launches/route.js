@@ -1,6 +1,6 @@
 import { NextResponse } from "next/server";
 import { JsonRpcProvider } from "ethers";
-import { getChain, listLaunches } from "@/lib/engine";
+import { getChain, getEthUsd, listLaunches } from "@/lib/engine";
 
 /**
  * GET /api/launches?network=robinhood&limit=12
@@ -29,11 +29,25 @@ export async function GET(request) {
 
   try {
     const provider = new JsonRpcProvider(chain.rpc, chain.chainId);
-    const feed = await listLaunches(provider, chain, {
-      limit,
-      maxBlocks: Number(process.env.LAUNCH_SCAN_BLOCKS || 60_000),
-    });
-    return NextResponse.json(serialise({ ...feed, network, explorer: chain.explorer }));
+    // The rate is fetched alongside the feed, not after it: prices and market
+    // caps are unreadable in WETH, and a second round trip would show the feed
+    // twice — once priced in Ξ, then again in dollars.
+    const [feed, rate] = await Promise.all([
+      listLaunches(provider, chain, {
+        limit,
+        maxBlocks: Number(process.env.LAUNCH_SCAN_BLOCKS || 60_000),
+      }),
+      getEthUsd(),
+    ]);
+    return NextResponse.json(
+      serialise({
+        ...feed,
+        network,
+        explorer: chain.explorer,
+        ethUsd: rate?.usd ?? null,
+        ethUsdStale: rate?.stale ?? false,
+      })
+    );
   } catch (error) {
     console.error("Launch feed failed:", error);
     const unreachable = /fetch|network|ECONN|timeout|ENOTFOUND/i.test(error.message || "");

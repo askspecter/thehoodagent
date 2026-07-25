@@ -1,5 +1,6 @@
 import { NextResponse } from "next/server";
 import { setSession, takeOAuthState } from "@/lib/session";
+import { publicOrigin, xConfig } from "@/lib/xauth";
 
 /** Step 2: X redirects here with a code. Exchange it, then load the profile. */
 export async function GET(request) {
@@ -8,14 +9,27 @@ export async function GET(request) {
   const state = url.searchParams.get("state");
   const oauthError = url.searchParams.get("error");
 
-  const home = new URL("/", url.origin);
+  // Not `url.origin`: behind a proxy that is the internal host, and sending the
+  // visitor there ends the sign-in on a hostname their browser cannot resolve.
+  const home = new URL("/", publicOrigin(request));
 
   if (oauthError) {
     home.searchParams.set("auth_error", oauthError);
     return NextResponse.redirect(home);
   }
 
-  const saved = await takeOAuthState();
+  let saved;
+  try {
+    saved = await takeOAuthState();
+  } catch (error) {
+    // Only ever a missing SESSION_SECRET, and it fails at exactly the point
+    // where the visitor has already handed X their password. Name it.
+    console.error("Could not read the OAuth state cookie:", error);
+    home.searchParams.set("auth_error", "not_configured");
+    home.searchParams.set("missing", "SESSION_SECRET");
+    return NextResponse.redirect(home);
+  }
+
   if (!saved || !state || saved.state !== state) {
     // Either the cookie expired or someone replayed a callback at us.
     home.searchParams.set("auth_error", "state_mismatch");
@@ -26,9 +40,13 @@ export async function GET(request) {
     return NextResponse.redirect(home);
   }
 
-  const clientId = process.env.X_CLIENT_ID;
-  const clientSecret = process.env.X_CLIENT_SECRET;
-  const redirectUri = process.env.X_REDIRECT_URI;
+  const config = xConfig(request);
+  const clientId = config.clientId;
+  const clientSecret = config.clientSecret;
+  // The URI the authorize step actually sent. X compares the two strings and
+  // rejects the exchange on any difference, so re-deriving it here would be a
+  // guess where the cookie holds the fact.
+  const redirectUri = saved.redirectUri || config.redirectUri;
 
   try {
     const body = new URLSearchParams({
