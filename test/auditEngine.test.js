@@ -1,17 +1,17 @@
 const { expect } = require("chai");
 const { ethers } = require("hardhat");
 
-const { auditToken } = require("../web/lib/engine/audit");
-const { scoreFindings, scoreReport } = require("../web/lib/engine/score");
+const { auditToken } = require("../lib/engine/audit");
+const { scoreFindings, scoreReport } = require("../lib/engine/score");
 const {
   scanCapabilities,
   looksLikeERC20,
   walk,
   codeSize,
-} = require("../web/lib/engine/bytecode");
-const { selectorOf } = require("../web/lib/engine/selectors");
-const { getChain } = require("../web/lib/engine/chains");
-const { priceFromSqrt, readLaunch } = require("../web/lib/engine/pons");
+} = require("../lib/engine/bytecode");
+const { selectorOf } = require("../lib/engine/selectors");
+const { getChain } = require("../lib/engine/chains");
+const { priceFromSqrt, readLaunch } = require("../lib/engine/pons");
 
 /**
  * These tests run the audit engine against contracts deployed to an in-process

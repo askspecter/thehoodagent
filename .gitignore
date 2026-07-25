@@ -1,10 +1,18 @@
-# Secrets — NEVER commit. Contains PRIVATE_KEY for the deployer wallet.
+# Secrets — NEVER commit. Holds SESSION_SECRET, X credentials, and any
+# PRIVATE_KEY used for deploying contracts.
 .env
 .env.local
+.env*.local
 *.key
 
 # Dependencies
 node_modules/
+
+# Next.js build output
+.next/
+out/
+next-env.d.ts
+*.tsbuildinfo
 
 # Hardhat build output
 artifacts/

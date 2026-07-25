@@ -1,23 +1,32 @@
 {
-  "name": "ponsfamily",
+  "name": "pons-sentinel",
   "version": "1.0.0",
-  "description": "Pons Family ($PONS) — 1,000,000,000 fixed-supply ERC-20 token + launch website for ponsfamily.com",
+  "private": true,
+  "description": "pons sentinel — token audit dashboard for Robinhood Chain, with X sign-in. The Next.js app lives at the repository root so Vercel deploys it with no configuration.",
   "license": "MIT",
   "scripts": {
-    "compile": "hardhat compile",
+    "dev": "next dev -p 3000",
+    "build": "next build",
+    "start": "next start -p 3000",
     "test": "hardhat test",
+    "compile": "hardhat compile",
+    "seed:local": "hardhat run scripts/seed-local.js --network localhost",
     "deploy:bsc-testnet": "hardhat run scripts/deploy.js --network bscTestnet",
     "deploy:base-sepolia": "hardhat run scripts/deploy.js --network baseSepolia",
     "deploy:bsc": "hardhat run scripts/deploy.js --network bsc",
     "deploy:base": "hardhat run scripts/deploy.js --network base",
     "deploy:eth": "hardhat run scripts/deploy.js --network mainnet"
   },
+  "dependencies": {
+    "ethers": "^6.13.4",
+    "next": "^15.1.6",
+    "react": "^19.0.0",
+    "react-dom": "^19.0.0"
+  },
   "devDependencies": {
     "@nomicfoundation/hardhat-toolbox": "^5.0.0",
-    "hardhat": "^2.22.10"
-  },
-  "dependencies": {
     "@openzeppelin/contracts": "^5.1.0",
-    "dotenv": "^16.4.5"
+    "dotenv": "^16.4.5",
+    "hardhat": "^2.22.10"
   }
 }
