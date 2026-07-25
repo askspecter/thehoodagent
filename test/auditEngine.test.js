@@ -12,6 +12,11 @@ const {
 const { selectorOf } = require("../lib/engine/selectors");
 const { getChain } = require("../lib/engine/chains");
 const { priceFromSqrt, readLaunch } = require("../lib/engine/pons");
+const {
+  listLaunches,
+  baseLaunch,
+  TOKEN_LAUNCHED_TOPIC,
+} = require("../lib/engine/launches");
 
 /**
  * These tests run the audit engine against contracts deployed to an in-process
@@ -185,6 +190,45 @@ describe("audit engine", function () {
       // conclusion drawn from a check that never ran.
       const report = await audit(await cleanToken.getAddress());
       expect(report.findings.map((f) => f.id)).to.not.include("not-a-pons-launch");
+    });
+  });
+
+  describe("launch feed", function () {
+    it("derives the documented TokenLaunched topic0", function () {
+      // Published by pons. If our event signature drifts by even one argument,
+      // the computed topic changes and the feed silently reads nothing at all —
+      // so this is pinned rather than trusted.
+      expect(TOKEN_LAUNCHED_TOPIC).to.equal(
+        "0xdb51ea9ad51ab453a65a4cb7e60c3cb378c9501bb002609f8f97778fb6c4235a"
+      );
+    });
+
+    it("decodes a launch log into the shape the feed renders", function () {
+      const fake = {
+        args: {
+          token: "0x39dbed3a2bd333467115de45665cc57f813c4571",
+          deployer: "0x0bd7d308f8e1639fab988df18a8011f41eacad73",
+          pairToken: "0x0bd7d308f8e1639fab988df18a8011f41eacad73",
+          pool: "0x10cc6bd38112cac182db90b6a71d8bb5939526ba",
+          restrictionsEndBlock: 8991200n,
+          initialBuyAmount: 1000n,
+        },
+        blockNumber: 8991118,
+        transactionHash: "0xabc",
+      };
+
+      const out = baseLaunch(fake);
+      // Addresses must come back checksummed, since they are used as React keys
+      // and compared against other checksummed values.
+      expect(out.token).to.equal("0x39dBED3a2bd333467115dE45665cC57F813C4571");
+      expect(out.restrictionsEndBlock).to.equal(8991200);
+      expect(out.blockNumber).to.equal(8991118);
+    });
+
+    it("returns an explanatory note instead of throwing when no factory is set", async function () {
+      const feed = await listLaunches(ethers.provider, chain, { useCache: false });
+      expect(feed.launches).to.deep.equal([]);
+      expect(feed.note).to.match(/no pons factory/i);
     });
   });
 

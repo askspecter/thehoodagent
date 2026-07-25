@@ -1,6 +1,7 @@
 "use client";
 
 import { useCallback, useEffect, useState } from "react";
+import LaunchFeed from "./LaunchFeed";
 
 /**
  * Severity presentation. Each entry pairs a color with an ICON and a TEXT LABEL,
@@ -131,6 +132,7 @@ export default function Home() {
   const [sessionError, setSessionError] = useState(null);
   const [loadingSession, setLoadingSession] = useState(true);
 
+  const [view, setView] = useState("launches");
   const [address, setAddress] = useState("");
   const [network, setNetwork] = useState("robinhood");
   const [busy, setBusy] = useState(false);
@@ -157,32 +159,51 @@ export default function Home() {
       .finally(() => setLoadingSession(false));
   }, []);
 
-  const runAudit = useCallback(async () => {
-    const target = address.trim();
-    if (!target) return;
+  /**
+   * `override` lets a launch card audit its own token without waiting for the
+   * input's state to settle — passing the address straight through avoids
+   * auditing whatever happened to be in the box a render ago.
+   */
+  const runAudit = useCallback(
+    async (override) => {
+      const target = (typeof override === "string" ? override : address).trim();
+      if (!target) return;
 
-    setBusy(true);
-    setError(null);
-    setReport(null);
+      setBusy(true);
+      setError(null);
+      setReport(null);
 
-    try {
-      const response = await fetch("/api/audit", {
-        method: "POST",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ address: target, network }),
-      });
-      const data = await response.json();
-      if (!response.ok) {
-        setError(data.hint ? `${data.error} ${data.hint}` : data.error || "Audit failed.");
-      } else {
-        setReport(data);
+      try {
+        const response = await fetch("/api/audit", {
+          method: "POST",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify({ address: target, network }),
+        });
+        const data = await response.json();
+        if (!response.ok) {
+          setError(data.hint ? `${data.error} ${data.hint}` : data.error || "Audit failed.");
+        } else {
+          setReport(data);
+        }
+      } catch {
+        setError("Could not reach the audit API.");
+      } finally {
+        setBusy(false);
       }
-    } catch {
-      setError("Could not reach the audit API.");
-    } finally {
-      setBusy(false);
-    }
-  }, [address, network]);
+    },
+    [address, network]
+  );
+
+  /** Audit a token straight from its card in the launch feed. */
+  const auditFromFeed = useCallback(
+    (tokenAddress) => {
+      setView("audit");
+      setAddress(tokenAddress);
+      window.scrollTo({ top: 0, behavior: "smooth" });
+      runAudit(tokenAddress);
+    },
+    [runAudit]
+  );
 
   const logout = useCallback(async () => {
     await fetch("/api/auth/logout", { method: "POST" });
@@ -236,6 +257,35 @@ export default function Home() {
                       rather than a "not configured" notice that reads as broken. */}
         </header>
 
+        <nav className="nav">
+          {[
+            ["launches", "Launches"],
+            ["audit", "Audit"],
+          ].map(([key, label]) => (
+            <button
+              key={key}
+              className={`nav-tab ${view === key ? "nav-on" : ""}`}
+              onClick={() => setView(key)}
+              aria-current={view === key ? "page" : undefined}
+            >
+              {label}
+            </button>
+          ))}
+          <span className="nav-spacer" />
+          <a
+            className="nav-tab nav-ext"
+            href="https://www.ponsfamily.com/launchpad/create"
+            target="_blank"
+            rel="noopener noreferrer"
+          >
+            Create on pons ↗
+          </a>
+        </nav>
+
+        {view === "launches" && <LaunchFeed network={network} onAudit={auditFromFeed} />}
+
+        {view === "audit" && (
+        <>
         <section className="hero">
           <div className="eyebrow">
             <span className="live-dot" />
@@ -386,7 +436,10 @@ export default function Home() {
         </>
       )}
 
-      <footer className="disclaimer">
+        </>
+        )}
+
+        <footer className="disclaimer">
         <p>
           <strong>This is an automated heuristic scan, not financial advice and not a
           guarantee.</strong>{" "}
