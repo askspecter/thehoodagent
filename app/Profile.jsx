@@ -19,6 +19,12 @@ export default function Profile({ network, user, onSignIn, onNavigate }) {
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState(null);
 
+  // Wallet actions, moved here from the old separate Wallet tab.
+  const [copied, setCopied] = useState(false);
+  const [exported, setExported] = useState(null);
+  const [exporting, setExporting] = useState(false);
+  const [confirmExport, setConfirmExport] = useState(false);
+
   useEffect(() => {
     currentAccount().then(setAccount);
   }, []);
@@ -65,6 +71,33 @@ export default function Profile({ network, user, onSignIn, onNavigate }) {
   useEffect(() => {
     load();
   }, [load]);
+
+  const copyAddr = useCallback(async () => {
+    if (!wallet?.address) return;
+    try {
+      await navigator.clipboard.writeText(wallet.address);
+      setCopied(true);
+      setTimeout(() => setCopied(false), 1600);
+    } catch {
+      /* clipboard blocked — the address is on screen to copy by hand */
+    }
+  }, [wallet]);
+
+  const doExport = useCallback(async () => {
+    setExporting(true);
+    setError(null);
+    try {
+      const res = await fetch("/api/wallet/export", { method: "POST" });
+      const json = await res.json();
+      if (!res.ok) setError(json.error);
+      else setExported(json);
+    } catch {
+      setError("Could not export the key.");
+    } finally {
+      setExporting(false);
+      setConfirmExport(false);
+    }
+  }, []);
 
   return (
     <>
@@ -166,6 +199,69 @@ export default function Profile({ network, user, onSignIn, onNavigate }) {
               </div>
             </div>
           </div>
+
+          {wallet?.address && (
+            <>
+              <div className="section-title">Wallet · address &amp; key</div>
+              <div className="panel">
+                <button className="wal-addr" onClick={copyAddr} title="Copy address">
+                  {wallet.address}{" "}
+                  <span className="wal-copy">{copied ? "copied ✓" : "copy"}</span>
+                </button>
+
+                {!exported && !confirmExport && (
+                  <div className="launch-foot">
+                    <button className="btn" onClick={() => setConfirmExport(true)}>
+                      Export private key
+                    </button>
+                    <span className="form-note">
+                      Import this wallet into MetaMask or anywhere else.
+                    </span>
+                  </div>
+                )}
+
+                {confirmExport && !exported && (
+                  <div className="alert alert-warn">
+                    <span className="alert-icon">▲</span>
+                    <span>
+                      <strong>The key will appear on screen.</strong> Anyone who sees it controls
+                      this wallet forever, and it stays valid even after you sign out.
+                      <div className="launch-foot">
+                        <button className="btn btn-primary" onClick={doExport} disabled={exporting}>
+                          {exporting ? (
+                            <>
+                              <span className="spinner" />
+                              Deriving…
+                            </>
+                          ) : (
+                            "Show it"
+                          )}
+                        </button>
+                        <button className="btn btn-ghost" onClick={() => setConfirmExport(false)}>
+                          Cancel
+                        </button>
+                      </div>
+                    </span>
+                  </div>
+                )}
+
+                {exported && (
+                  <>
+                    <div className="wal-key">{exported.privateKey}</div>
+                    <div className="alert alert-warn">
+                      <span className="alert-icon">▲</span>
+                      <span>{exported.warning}</span>
+                    </div>
+                    <div className="launch-foot">
+                      <button className="btn btn-ghost" onClick={() => setExported(null)}>
+                        Hide it
+                      </button>
+                    </div>
+                  </>
+                )}
+              </div>
+            </>
+          )}
 
           {folio && (
             <>

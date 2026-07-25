@@ -7,7 +7,6 @@ import Menu from "./Menu";
 import Profile from "./Profile";
 import Terminal from "./Terminal";
 import TradePanel from "./TradePanel";
-import WalletPanel from "./WalletPanel";
 import { fmtEth, fmtUsdPrice, fullNumber, usdOr } from "./format";
 
 /**
@@ -139,7 +138,6 @@ const DESTINATIONS = [
   { key: "trade", label: "Trade", hint: "the manual form" },
   { key: "audit", label: "Audit", hint: "can you sell it?" },
   { key: "profile", label: "Profile", hint: "your bags, priced" },
-  { key: "wallet", label: "Wallet", hint: "address · export key" },
 ];
 
 const EXTERNAL_LINKS = [
@@ -455,10 +453,6 @@ export default function Home() {
 
         {view === "profile" && (
           <Profile network={network} user={user} onSignIn={signIn} onNavigate={navigate} />
-        )}
-
-        {view === "wallet" && (
-          <WalletPanel network={network} user={user} onSignIn={signIn} />
         )}
 
         {view === "audit" && (
