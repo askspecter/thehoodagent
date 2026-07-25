@@ -33,8 +33,8 @@ import {
  * wallet rather than being sendable anywhere.
  */
 const FIELD_HINTS = [
-  { match: /^(name|tokenname)$/i, label: "Token name", placeholder: "Hood Rat" },
-  { match: /^(symbol|ticker)$/i, label: "Symbol", placeholder: "HOODRAT" },
+  { match: /^(name|tokenname)$/i, label: "Token name", placeholder: "Name your token" },
+  { match: /^(symbol|ticker)$/i, label: "Symbol", placeholder: "TICKER" },
   { match: /(logo|image|icon|avatar|uri)/i, label: "Logo", isLogo: true },
   { match: /(description|desc|bio)/i, label: "Description", placeholder: "What is this token?", textarea: true },
   { match: /twitter/i, label: "X", placeholder: "https://x.com/…" },
