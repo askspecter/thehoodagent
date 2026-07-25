@@ -15,17 +15,49 @@ round trip that detects honeypots without spending anything.
 
 | Path | What it is |
 |---|---|
-| **`web/`** | **The web app.** Next.js, X (Twitter) sign-in, audit dashboard. [Setup →](web/README.md) |
-| **`agent/`** | The audit engine (`@pons/engine`). Plain Node, read-only, shared by the web app. |
-| `agent/cli.js` | Optional terminal wrapper around the same engine, handy while developing. |
+| **`web/`** | **The web app — this is the product.** Next.js, X (Twitter) sign-in, audit dashboard. [Setup →](web/README.md) |
+| **`agent/`** | The audit engine (`@pons/engine`). Runs server-side inside the web app. Not a command-line tool. |
 | `contracts/PonsFamilyToken.sol` | A fixed-supply ERC-20, if you ever deploy a token *independently* of Pons. |
 | `contracts/mocks/MaliciousToken.sol` | Test fixture full of rug patterns — target practice that proves the scanner fires. |
 | `test/` | 22 tests. Runs the engine against real bytecode on an in-process EVM. |
 
+---
+
+## How the agent runs
+
+The agent lives **inside the website**. There is no command-line tool and nothing
+for a visitor to install — they open the site, sign in with X, and the agent works
+in the page.
+
+```
+Browser (the visitor)
+   │  signs in with X, types a token address
+   ▼
+Next.js page  web/app/page.jsx
+   │  POST /api/audit
+   ▼
+API route  web/app/api/audit/route.js        ← the agent runs HERE, server-side
+   │  imports @pons/engine
+   ▼
+Robinhood Chain RPC (read-only eth_call / eth_getCode / eth_getLogs)
+```
+
+The engine runs on the server rather than in the browser on purpose: it keeps the
+RPC endpoint and any API keys out of client code, and one warm connection serves
+every visitor.
+
+**When trading and launching are added, the split changes in one specific way:**
+reading stays on the server, but *signing* happens in the visitor's own wallet in
+their browser. A private key never reaches the server. That is not a limitation —
+it is the only correct design.
+
+The terminal commands below are for **you, once, to set the site up** — not for
+the people who use it.
+
 ```bash
-npm install          # root: contracts + engine + tests
-npm test             # 22 passing
-cd web && npm install && npm run dev
+npm install                              # engine + contracts + tests
+npm test                                 # 22 passing
+cd web && npm install && npm run dev     # the site → http://localhost:3000
 ```
 
 ---
@@ -58,14 +90,17 @@ the report's confidence to `partial` rather than reading as a pass.
 
 ---
 
-## Try it with no money and no live network
+## Optional: try it with no money and no live network
+
+Only useful while developing — it gives the site something real to audit when you
+have no RPC access. Visitors never do this.
 
 ```bash
 npx hardhat node                                           # terminal 1
 npx hardhat run scripts/seed-local.js --network localhost  # terminal 2
 ```
 
-Pick **Local EVM** in the app and paste a printed address:
+Then, **in the website**, pick **Local EVM** and paste a printed address:
 
 | Fixture | Result |
 |---|---|
