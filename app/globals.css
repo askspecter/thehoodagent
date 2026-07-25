@@ -85,10 +85,17 @@ body::after {
   );
 }
 
+/* The centred column. Header, page content and footer each get their own copy,
+   so vertical spacing is owned per-section rather than by one giant wrapper. */
 .shell {
   max-width: 1080px;
   margin: 0 auto;
-  padding: 0 16px 90px;
+  padding: 0 16px;
+}
+
+.page-main {
+  padding-bottom: 72px;
+  min-height: 46vh;
 }
 
 /* ---------- Command tape ---------- */
@@ -2664,5 +2671,349 @@ code, .field-type {
   .term-prompt,
   .term-chip {
     font-size: 12px !important;
+  }
+}
+
+/* ========== Landing page ========== */
+
+.lp-hero {
+  padding: 64px 0 40px;
+  max-width: 44ch;
+}
+
+.lp-title {
+  font-size: clamp(38px, 9vw, 68px);
+  font-weight: 800;
+  line-height: 1.02;
+  letter-spacing: -0.02em;
+  text-transform: uppercase;
+  color: var(--text-primary);
+  margin: 14px 0 0;
+}
+
+.lp-title em {
+  font-style: normal;
+  color: var(--lime);
+}
+
+.lp-lede {
+  font-size: clamp(14px, 2.4vw, 16px);
+  line-height: 1.65;
+  color: var(--text-secondary);
+  margin: 20px 0 0;
+  max-width: 60ch;
+}
+
+.lp-cta {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 10px;
+  margin-top: 28px;
+}
+
+/* Pillars: the three things CABLE is, each a link into the app. */
+.lp-pillars {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(260px, 1fr));
+  gap: 14px;
+  margin: 24px 0 8px;
+}
+
+.lp-pillar {
+  display: flex;
+  flex-direction: column;
+  border: 1px solid var(--hairline-bright);
+  background: var(--surface-1);
+  padding: 22px;
+  text-decoration: none;
+  color: inherit;
+  transition: border-color 140ms ease, transform 140ms ease, background 140ms ease;
+}
+
+.lp-pillar:hover {
+  border-color: var(--lime);
+  background: var(--surface-3);
+  transform: translateY(-2px);
+}
+
+.lp-pillar-tag {
+  font-size: 10px;
+  font-weight: 700;
+  letter-spacing: 0.18em;
+  text-transform: uppercase;
+  color: var(--lime);
+}
+
+.lp-pillar-title {
+  font-size: 20px;
+  font-weight: 700;
+  letter-spacing: 0.01em;
+  color: var(--text-primary);
+  margin-top: 10px;
+}
+
+.lp-pillar-body {
+  font-size: 12.5px;
+  line-height: 1.6;
+  color: var(--text-secondary);
+  margin: 12px 0 0;
+  flex: 1;
+}
+
+.lp-pillar-cta {
+  margin-top: 18px;
+  font-size: 11px;
+  font-weight: 700;
+  letter-spacing: 0.1em;
+  text-transform: uppercase;
+  color: var(--lime);
+}
+
+/* Command showcase. */
+.lp-commands {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(280px, 1fr));
+  gap: 10px;
+}
+
+.lp-cmd {
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+  border: 1px solid var(--hairline);
+  background: var(--page);
+  padding: 14px 16px;
+  text-decoration: none;
+  transition: border-color 120ms ease, background 120ms ease;
+}
+
+.lp-cmd:hover {
+  border-color: var(--lime-dim);
+  background: var(--surface-1);
+}
+
+.lp-cmd-line {
+  font-size: 14px;
+  color: var(--text-primary);
+}
+
+.lp-cmd-prompt {
+  color: var(--lime);
+}
+
+.lp-cmd-what {
+  font-size: 11px;
+  color: var(--text-muted);
+}
+
+.lp-foot-cta {
+  margin: 48px 0 8px;
+  padding: 32px;
+  border: 1px solid var(--hairline-bright);
+  background: var(--surface-1);
+  text-align: center;
+}
+
+.lp-foot-cta h2 {
+  font-size: 26px;
+  text-transform: uppercase;
+  letter-spacing: 0.02em;
+  color: var(--text-primary);
+  margin: 0 0 4px;
+}
+
+.lp-foot-cta .lp-cta {
+  justify-content: center;
+}
+
+.limits strong {
+  color: var(--text-primary);
+}
+
+/* ========== Site footer ========== */
+
+.site-footer {
+  border-top: 1px solid var(--hairline);
+  background: var(--surface-1);
+  margin-top: 40px;
+}
+
+.site-footer > * {
+  max-width: 1080px;
+  margin-inline: auto;
+  padding-inline: 16px;
+}
+
+.foot-lede {
+  padding-top: 40px;
+  display: grid;
+  gap: 12px;
+  max-width: min(1080px, 100%);
+}
+
+.foot-brand {
+  display: inline-flex;
+  align-items: center;
+  gap: 9px;
+  font-size: 16px;
+  font-weight: 800;
+  letter-spacing: 0.08em;
+  text-transform: uppercase;
+  color: var(--text-primary);
+}
+
+.foot-logo {
+  width: 22px;
+  height: 22px;
+  object-fit: contain;
+}
+
+.foot-lede p {
+  font-size: 12.5px;
+  line-height: 1.6;
+  color: var(--text-secondary);
+  max-width: 66ch;
+  margin: 0;
+}
+
+.foot-cols {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(140px, 1fr));
+  gap: 22px;
+  padding-top: 28px;
+}
+
+.foot-col {
+  display: flex;
+  flex-direction: column;
+  gap: 9px;
+}
+
+.foot-head {
+  font-size: 10px;
+  font-weight: 700;
+  letter-spacing: 0.16em;
+  text-transform: uppercase;
+  color: var(--text-muted);
+  margin-bottom: 2px;
+}
+
+.foot-col a {
+  font-size: 12.5px;
+  color: var(--text-secondary);
+  text-decoration: none;
+  width: fit-content;
+}
+
+.foot-col a:hover {
+  color: var(--lime);
+}
+
+.foot-risk {
+  padding-top: 28px;
+}
+
+.foot-risk p {
+  font-size: 11px;
+  line-height: 1.6;
+  color: var(--text-muted);
+  max-width: 84ch;
+  margin: 6px 0 0;
+}
+
+.foot-base {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  flex-wrap: wrap;
+  gap: 12px;
+  padding-top: 24px;
+  padding-bottom: 40px;
+  margin-top: 24px;
+  border-top: 1px solid var(--hairline);
+  font-size: 11px;
+  color: var(--text-muted);
+}
+
+.foot-x {
+  display: inline-flex;
+  align-items: center;
+  gap: 8px;
+  font-size: 12px;
+  font-weight: 700;
+  letter-spacing: 0.04em;
+  color: var(--text-secondary);
+  text-decoration: none;
+  border: 1px solid var(--hairline-bright);
+  padding: 8px 13px;
+}
+
+.foot-x:hover {
+  color: var(--text-primary);
+  border-color: var(--lime);
+}
+
+/* ========== Legal pages ========== */
+
+.legal {
+  padding: 40px 0 24px;
+  max-width: 72ch;
+}
+
+.legal h1 {
+  font-size: clamp(28px, 6vw, 40px);
+  font-weight: 800;
+  text-transform: uppercase;
+  letter-spacing: -0.01em;
+  color: var(--text-primary);
+  margin: 14px 0 4px;
+}
+
+.legal-updated {
+  font-size: 11px;
+  letter-spacing: 0.1em;
+  text-transform: uppercase;
+  color: var(--text-muted);
+  margin: 0 0 24px;
+}
+
+.legal h2 {
+  font-size: 15px;
+  font-weight: 700;
+  letter-spacing: 0.02em;
+  color: var(--lime);
+  margin: 30px 0 8px;
+}
+
+.legal p,
+.legal li {
+  font-size: 13px;
+  line-height: 1.7;
+  color: var(--text-secondary);
+}
+
+.legal ul {
+  margin: 8px 0;
+  padding-left: 20px;
+}
+
+.legal li {
+  margin-bottom: 8px;
+}
+
+.legal strong {
+  color: var(--text-primary);
+}
+
+.legal a {
+  color: var(--lime);
+}
+
+@media (max-width: 560px) {
+  .lp-hero {
+    padding-top: 40px;
+  }
+  .lp-foot-cta {
+    padding: 24px 18px;
   }
 }
