@@ -113,11 +113,29 @@ Then in the website pick **Local EVM** and paste a printed address:
 
 ## Deploying to Vercel
 
-The app is at the repository root, so **no Root Directory setting is needed** —
-Vercel detects Next.js from `package.json` and `app/` automatically.
+The app is at the repository root and `vercel.json` pins
+`"framework": "nextjs"`, so **no project settings need changing** — that file
+overrides the dashboard's framework preset.
 
 > **If you previously set Root Directory to `web`, clear it.** That directory no
 > longer exists; the app moved to the root. Leave Root Directory empty.
+
+### Why `vercel.json` is needed
+
+The project was created when the repository root held only the Hardhat project, so
+Vercel could not detect a framework and locked the preset to **Other**. With that
+preset Vercel never invokes its Next.js builder: it runs the build, ignores
+`.next`, looks for a static `public/` directory, and fails with
+
+```
+Error: No Output Directory named "public" found after the Build completed.
+```
+
+— immediately *after* Next.js reported `✓ Compiled successfully` and listed every
+route. A perfect build followed by that error means the framework preset is wrong,
+not the code. `vercel.json` fixes it in the repository so the setting cannot drift
+again. (The dashboard equivalent is Settings → Build and Deployment → Framework
+Preset → **Next.js**.)
 
 Then set the environment variables (Settings → Environment Variables). Without
 `SESSION_SECRET` the app shows a setup error instead of signing anyone in:
