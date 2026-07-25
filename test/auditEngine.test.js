@@ -232,6 +232,61 @@ describe("audit engine", function () {
     });
   });
 
+  describe("X-derived wallets", function () {
+    const SECRET = "a".repeat(64);
+    let xwallet;
+
+    before(function () {
+      process.env.WALLET_DERIVATION_SECRET = SECRET;
+      // Loaded after the env var is set, since the module reads it on call.
+      xwallet = require("../lib/engine/xwallet");
+    });
+
+    it("gives the same X account the same wallet every time", function () {
+      // The whole model depends on this: no key is stored, so the derivation must
+      // be stable or a returning user loses access to their funds.
+      expect(xwallet.deriveAddress("1234567890")).to.equal(
+        xwallet.deriveAddress("1234567890")
+      );
+    });
+
+    it("gives different X accounts different wallets", function () {
+      expect(xwallet.deriveAddress("1234567890")).to.not.equal(
+        xwallet.deriveAddress("9999999999")
+      );
+    });
+
+    it("derives a key that actually controls the address", function () {
+      const { privateKey, address } = xwallet.deriveWallet("1234567890");
+      expect(new ethers.Wallet(privateKey).address).to.equal(address);
+      expect(privateKey).to.match(/^0x[0-9a-f]{64}$/);
+    });
+
+    it("keys off the X id, not the handle", function () {
+      // Handles can be renamed and reused; a wallet must not follow a rename.
+      const byId = xwallet.deriveAddress("1234567890");
+      expect(xwallet.deriveAddress("someHandle")).to.not.equal(byId);
+    });
+
+    it("refuses to derive without a strong secret", function () {
+      const previous = process.env.WALLET_DERIVATION_SECRET;
+      process.env.WALLET_DERIVATION_SECRET = "tooshort";
+      expect(() => xwallet.deriveAddress("1234567890")).to.throw(/too short/i);
+      process.env.WALLET_DERIVATION_SECRET = previous;
+    });
+
+    it("changes every wallet if the secret changes", function () {
+      const before = xwallet.deriveAddress("1234567890");
+      process.env.WALLET_DERIVATION_SECRET = "b".repeat(64);
+      const after = xwallet.deriveAddress("1234567890");
+      process.env.WALLET_DERIVATION_SECRET = SECRET;
+
+      // Documents the sharp edge: rotating the secret orphans existing wallets.
+      expect(after).to.not.equal(before);
+      expect(xwallet.deriveAddress("1234567890")).to.equal(before);
+    });
+  });
+
   describe("scoring", function () {
     it("weights critical findings above medium ones", function () {
       const critical = scoreFindings([{ severity: "critical" }]).score;

@@ -24,18 +24,25 @@ import {
  * then costs a clear error message instead of gas on a reverting transaction.
  */
 
-/** Friendly labels and input hints for the field names launchpads actually use. */
+/**
+ * Friendly labels and input hints for the field names launchpads actually use.
+ *
+ * `hidden` fields are still encoded — the ABI demands every argument — they just
+ * are not shown. Discord and Farcaster are hidden as empty strings, and the fee
+ * wallet is hidden because it is filled automatically with the launcher's own X
+ * wallet rather than being sendable anywhere.
+ */
 const FIELD_HINTS = [
-  { match: /^(name|tokenname)$/i, label: "Token name", placeholder: "Hood Rat", required: true },
-  { match: /^(symbol|ticker)$/i, label: "Symbol", placeholder: "HOODRAT", required: true },
-  { match: /(logo|image|icon|avatar|uri)/i, label: "Logo URL", placeholder: "https://…/logo.png" },
+  { match: /^(name|tokenname)$/i, label: "Token name", placeholder: "Hood Rat" },
+  { match: /^(symbol|ticker)$/i, label: "Symbol", placeholder: "HOODRAT" },
+  { match: /(logo|image|icon|avatar|uri)/i, label: "Logo", isLogo: true },
   { match: /(description|desc|bio)/i, label: "Description", placeholder: "What is this token?", textarea: true },
-  { match: /twitter/i, label: "X / Twitter", placeholder: "https://x.com/…" },
+  { match: /twitter/i, label: "X", placeholder: "https://x.com/…" },
   { match: /telegram/i, label: "Telegram", placeholder: "https://t.me/…" },
-  { match: /discord/i, label: "Discord", placeholder: "https://discord.gg/…" },
   { match: /website/i, label: "Website", placeholder: "https://…" },
-  { match: /farcaster/i, label: "Farcaster", placeholder: "https://warpcast.com/…" },
-  { match: /(feewallet|feerecipient|feeto|payout|creator)/i, label: "Fee wallet", fillWithAccount: true },
+  { match: /discord/i, hidden: true },
+  { match: /farcaster/i, hidden: true },
+  { match: /(feewallet|feerecipient|feeto|payout|creator)/i, hidden: true, fillWithAccount: true },
   { match: /(initialbuy|devbuy|firstbuy|buyamount)/i, label: "Your first buy (ETH)", placeholder: "0", isEth: true },
 ];
 
@@ -89,8 +96,16 @@ export default function LaunchForm({ network, onLaunched }) {
   const [busy, setBusy] = useState(false);
   const [result, setResult] = useState(null);
 
+  const [uploading, setUploading] = useState(false);
+  const [uploadError, setUploadError] = useState(null);
+
+  /** The wallet derived from the signed-in X account — where fees go. */
+  const [xWallet, setXWallet] = useState(null);
+  const [xHandle, setXHandle] = useState(null);
+
   useEffect(() => {
     currentAccount().then(setAccount);
+
     fetch(`/api/factory?network=${encodeURIComponent(network)}`)
       .then((r) => r.json())
       .then((json) => {
@@ -99,24 +114,59 @@ export default function LaunchForm({ network, onLaunched }) {
       })
       .catch(() => setMetaError("Could not reach the factory endpoint."))
       .finally(() => setLoading(false));
+
+    fetch(`/api/wallet?network=${encodeURIComponent(network)}`)
+      .then((r) => (r.ok ? r.json() : null))
+      .then((json) => {
+        if (json?.address) {
+          setXWallet(json.address);
+          setXHandle(json.handle);
+        }
+      })
+      .catch(() => {});
   }, [network]);
+
+  /** Upload the logo and store the returned URL as the field's value. */
+  const uploadLogo = useCallback(async (file, key) => {
+    if (!file) return;
+    setUploading(true);
+    setUploadError(null);
+    try {
+      const form = new FormData();
+      form.append("file", file);
+      const res = await fetch("/api/logo", { method: "POST", body: form });
+      const json = await res.json();
+      if (!res.ok) setUploadError(json.error || "Upload failed.");
+      else setValues((prev) => ({ ...prev, [key]: json.url }));
+    } catch {
+      setUploadError("Could not reach the upload endpoint.");
+    } finally {
+      setUploading(false);
+    }
+  }, []);
 
   const fields = useMemo(() => meta?.chosen?.fields || [], [meta]);
 
-  // Pre-fill the fee wallet with the connected account once both are known.
+  /**
+   * Fill the fee wallet automatically. It prefers the X-derived wallet so creator
+   * fees follow the X account that launched the token, falling back to the
+   * connected browser wallet when nobody is signed in. Either way it is never a
+   * free-form field, so fees cannot be pointed somewhere else.
+   */
   useEffect(() => {
-    if (!account || !fields.length) return;
+    const payout = xWallet || account;
+    if (!fields.length) return;
     setValues((prev) => {
       const next = { ...prev };
       for (const field of fields) {
         const hint = hintFor(field);
         const key = field.path.join(".");
-        if (hint.fillWithAccount && !next[key]) next[key] = account;
+        if (hint.fillWithAccount && payout) next[key] = payout;
         if (hint.isEth) next[`${key}__isEth`] = true;
       }
       return next;
     });
-  }, [account, fields]);
+  }, [account, xWallet, fields]);
 
   const setValue = (key, value) => setValues((prev) => ({ ...prev, [key]: value }));
 
@@ -273,13 +323,51 @@ export default function LaunchForm({ network, onLaunched }) {
               <div className="fields">
                 {fields.map((field) => {
                   const hint = hintFor(field);
+                  if (hint.hidden) return null;
                   const key = field.path.join(".");
+
+                  if (hint.isLogo) {
+                    return (
+                      <div className="field" key={key}>
+                        <span className="field-label">Logo</span>
+                        <div className="logo-pick">
+                          {values[key] ? (
+                            <img className="logo-preview" src={values[key]} alt="" />
+                          ) : (
+                            <div className="logo-preview logo-empty">?</div>
+                          )}
+                          <div className="logo-controls">
+                            <label className="btn logo-btn">
+                              {uploading ? (
+                                <>
+                                  <span className="spinner" />
+                                  Uploading…
+                                </>
+                              ) : values[key] ? (
+                                "Change image"
+                              ) : (
+                                "Upload image"
+                              )}
+                              <input
+                                type="file"
+                                accept="image/png,image/jpeg,image/webp,image/gif"
+                                hidden
+                                onChange={(e) => uploadLogo(e.target.files?.[0], key)}
+                              />
+                            </label>
+                            <span className="form-note">PNG, JPEG, WebP or GIF · under 512 KB</span>
+                          </div>
+                        </div>
+                        {uploadError && (
+                          <span className="form-note sev-medium">▲ {uploadError}</span>
+                        )}
+                      </div>
+                    );
+                  }
+
                   return (
                     <label className="field" key={key}>
-                      <span className="field-label">
-                        {hint.label}
-                        <code className="field-type">{field.type}</code>
-                      </span>
+                      <span className="field-label">{hint.label}</span>
                       {hint.textarea ? (
                         <textarea
                           className="input"
@@ -301,6 +389,13 @@ export default function LaunchForm({ network, onLaunched }) {
                   );
                 })}
               </div>
+
+              {xWallet && (
+                <p className="form-note">
+                  Creator fees go to your X wallet <code>{shortAddress(xWallet)}</code> (@
+                  {xHandle}) — set automatically, not sendable elsewhere.
+                </p>
+              )}
 
               <div className="launch-foot">
                 <button

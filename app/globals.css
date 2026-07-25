@@ -582,6 +582,162 @@ textarea.input {
   color: var(--text-secondary);
 }
 
+/* ---------- Logo upload ---------- */
+
+.logo-pick {
+  display: flex;
+  align-items: center;
+  gap: 13px;
+}
+
+.logo-preview {
+  width: 60px;
+  height: 60px;
+  border-radius: 13px;
+  object-fit: cover;
+  border: 1px solid var(--hairline);
+  background: var(--surface-2);
+  flex-shrink: 0;
+}
+
+.logo-empty {
+  display: grid;
+  place-items: center;
+  font-family: var(--font-mono);
+  font-size: 22px;
+  color: #57554f;
+}
+
+.logo-controls {
+  display: flex;
+  flex-direction: column;
+  gap: 5px;
+  min-width: 0;
+}
+
+.logo-controls .form-note {
+  margin-top: 0;
+}
+
+/* A label styled as a button, wrapping a hidden file input. */
+.logo-btn {
+  cursor: pointer;
+  align-self: flex-start;
+  font-size: 13px;
+  padding: 8px 13px;
+}
+
+/* ---------- Wallet panel ---------- */
+
+.wal-head {
+  display: flex;
+  align-items: center;
+  gap: 13px;
+}
+
+.wal-avatar {
+  width: 48px;
+  height: 48px;
+  border-radius: 50%;
+  border: 1px solid var(--ring);
+  flex-shrink: 0;
+}
+
+.wal-id {
+  flex: 1;
+  min-width: 0;
+}
+
+.wal-handle {
+  font-size: 17px;
+  font-weight: 700;
+  letter-spacing: -0.01em;
+}
+
+.wal-addr {
+  font-family: var(--font-mono);
+  font-size: 12px;
+  color: var(--text-muted);
+  background: none;
+  border: 0;
+  padding: 0;
+  margin-top: 3px;
+  cursor: pointer;
+  text-align: left;
+  word-break: break-all;
+}
+
+.wal-addr:hover {
+  color: var(--text-secondary);
+}
+
+.wal-copy {
+  color: var(--accent);
+  margin-left: 7px;
+}
+
+.wal-balance {
+  margin-top: 20px;
+  padding: 17px 0;
+  border-top: 1px solid var(--hairline);
+  border-bottom: 1px solid var(--hairline);
+}
+
+.wal-figure {
+  font-size: clamp(34px, 7vw, 46px);
+  font-weight: 700;
+  letter-spacing: -0.04em;
+  line-height: 1.05;
+  margin-top: 5px;
+}
+
+.wal-actions {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(190px, 1fr));
+  gap: 1px;
+  background: var(--hairline);
+  border: 1px solid var(--hairline);
+  border-radius: 11px;
+  overflow: hidden;
+  margin-top: 18px;
+}
+
+.wal-act {
+  background: var(--surface-1);
+  padding: 14px 15px;
+  text-decoration: none;
+  color: inherit;
+}
+
+.wal-act-link:hover {
+  background: var(--surface-2);
+}
+
+.wal-act-title {
+  font-size: 13px;
+  font-weight: 650;
+}
+
+.wal-act-body {
+  font-size: 12px;
+  color: var(--text-muted);
+  margin-top: 4px;
+}
+
+/* The exported key. Monospace, selectable, and visually quarantined. */
+.wal-key {
+  font-family: var(--font-mono);
+  font-size: 13px;
+  word-break: break-all;
+  padding: 15px;
+  border-radius: 10px;
+  border: 1px solid var(--status-warning);
+  background: #14140f;
+  color: var(--text-primary);
+  user-select: all;
+  margin-top: 4px;
+}
+
 /* ---------- Steps ---------- */
 
 .steps {

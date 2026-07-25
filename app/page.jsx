@@ -4,6 +4,7 @@ import { useCallback, useEffect, useState } from "react";
 import LaunchFeed from "./LaunchFeed";
 import LaunchForm from "./LaunchForm";
 import TradePanel from "./TradePanel";
+import WalletPanel from "./WalletPanel";
 
 /**
  * Severity presentation. Each entry pairs a color with an ICON and a TEXT LABEL,
@@ -276,6 +277,7 @@ export default function Home() {
             ["launch", "Launch"],
             ["trade", "Trade"],
             ["audit", "Audit"],
+            ["wallet", "Wallet"],
           ].map(([key, label]) => (
             <button
               key={key}
@@ -308,6 +310,16 @@ export default function Home() {
         )}
 
         {view === "trade" && <TradePanel network={network} token={tradeToken} />}
+
+        {view === "wallet" && (
+          <WalletPanel
+            network={network}
+            user={user}
+            onSignIn={() => {
+              window.location.href = "/api/auth/x/login";
+            }}
+          />
+        )}
 
         {view === "audit" && (
         <>
