@@ -186,6 +186,7 @@ export default function LaunchFeed({ network, onAudit, onTrade, nonce }) {
         </div>
         <h1>
           Launch it here. It trades <em>everywhere</em>.
+          <span className="cursor" />
         </h1>
         <p>
           Tokens deployed through this site use the pons factory, so they appear on

@@ -330,6 +330,7 @@ export default function Home() {
           </div>
           <h1>
             Find out if you can <em>sell it</em> before you buy it.
+            <span className="cursor" />
           </h1>
           <p>
             Every launch looks the same until you try to leave. This agent simulates a full

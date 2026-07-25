@@ -223,6 +223,7 @@ export default function TradePanel({ network, token: initialToken }) {
         </div>
         <h1>
           Buy and sell <em>right here</em>.
+          <span className="cursor" />
         </h1>
         <p>
           Swaps run through the pons router against the token's own locked WETH pool. Signed in

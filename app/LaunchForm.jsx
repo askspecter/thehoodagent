@@ -268,6 +268,7 @@ export default function LaunchForm({ network, onLaunched }) {
         </div>
         <h1>
           Deploy it here. It lands <em>on pons</em>.
+          <span className="cursor" />
         </h1>
         <p>
           One transaction from your wallet mints a fixed 1,000,000,000 supply and opens a locked

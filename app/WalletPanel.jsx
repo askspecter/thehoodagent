@@ -73,6 +73,7 @@ export default function WalletPanel({ network, user, onSignIn }) {
           <div className="eyebrow">Wallet · tied to your X account</div>
           <h1>
             Sign in with X. <em>Get a wallet.</em>
+            <span className="cursor" />
           </h1>
           <p>
             No seed phrase, no setup. Your wallet is derived from your X account, so it is the same
@@ -106,6 +107,7 @@ export default function WalletPanel({ network, user, onSignIn }) {
         </div>
         <h1>
           Your wallet, <em>your key</em>.
+          <span className="cursor" />
         </h1>
       </section>
 
