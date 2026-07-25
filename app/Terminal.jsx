@@ -55,27 +55,16 @@ const VERBS = [
   "login",
 ];
 
-/*
- * The masthead. Drawn with a CSS border rather than box-drawing characters:
- * `┌───┐` only lines up if every glyph is exactly one cell wide, which is not
- * true in the fallback fonts a phone actually has, and a broken box is a worse
- * first impression than no box.
- */
-const BANNER = ["CABLE · TRADING TERMINAL", "Robinhood Chain · chain id 4663"];
-
-const SUGGESTIONS = ["buy $5 pons", "price pons", "list", "portfolio", "help"];
-
 let nextId = 0;
 const makeId = () => `e${(nextId += 1)}`;
 
 export default function Terminal({ network, user, onNavigate, onSignIn }) {
   const [log, setLog] = useState(() => [
-    { id: makeId(), type: "banner" },
     {
       id: makeId(),
       type: "line",
       tone: "muted",
-      text: "Type a command. `help` lists everything. Tickers resolve against the live feed.",
+      text: "Type a command. `help` lists everything.",
     },
   ]);
   const [input, setInput] = useState("");
@@ -417,14 +406,6 @@ export default function Terminal({ network, user, onNavigate, onSignIn }) {
             disabled={busy}
           />
         </div>
-
-        <div className="term-suggest">
-          {SUGGESTIONS.map((s) => (
-            <button key={s} className="term-chip" onClick={() => run(s)} disabled={busy}>
-              {s}
-            </button>
-          ))}
-        </div>
       </div>
 
       <p className="form-note term-foot">
@@ -448,15 +429,6 @@ function LogEntry({
   onNavigate,
   onSignIn,
 }) {
-  if (entry.type === "banner") {
-    return (
-      <div className="term-banner">
-        {BANNER.map((row) => (
-          <div key={row}>{row}</div>
-        ))}
-      </div>
-    );
-  }
 
   if (entry.type === "line") {
     return <div className={`term-line term-${entry.tone || "out"}`}>{entry.text}</div>;
