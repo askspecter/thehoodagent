@@ -1,23 +1,29 @@
 /*
- * Pons Sentinel — visual system.
+ * pons sentinel — visual system.
  *
- * This page deliberately commits to a single dark look: it is a trading-desk
- * tool, read in one context. Values are taken from the validated reference
- * palette so contrast is known rather than guessed.
+ * A trading-terminal look: heavy display type, phosphor grid, scanlines, a
+ * scrolling command tape. The page commits to a single dark theme on purpose —
+ * it is one tool read in one context.
  *
- * Status colors (good/warning/serious/critical) are FIXED and never themed.
- * They all clear 3:1 on the dark surface, but `serious` and `warning` sit close
- * to each other in hue — so every status is rendered with an ICON AND A TEXT
- * LABEL. Color never carries meaning on its own here.
+ * Two rules the loud styling is not allowed to break:
+ *
+ * 1. STATUS COLOURS ARE RESERVED. good/warning/serious/critical carry meaning,
+ *    all clear 3:1 on the dark surface, and are never reused for decoration.
+ *    `serious` and `warning` sit close in hue, so every status is rendered with
+ *    an ICON AND A TEXT LABEL — colour never carries meaning alone.
+ * 2. THE BRAND GLOW IS NOT A DATA COLOUR. Glow and accents come from the blue
+ *    family (--accent). Magnitude bars use the validated sequential blue. Green
+ *    stays reserved for status, so nothing decorative can impersonate "good".
  */
 
 :root {
   color-scheme: dark;
 
-  /* Surfaces & ink */
-  --page: #0d0d0d;
+  /* Surfaces & ink — validated reference values */
+  --page: #0b0b0b;
   --surface-1: #1a1a19;
   --surface-2: #222221;
+  --surface-3: #2a2a28;
   --text-primary: #ffffff;
   --text-secondary: #c3c2b7;
   --text-muted: #898781;
@@ -25,15 +31,19 @@
   --baseline: #383835;
   --ring: rgba(255, 255, 255, 0.1);
 
-  /* Status palette — fixed, never themed */
+  /* Status palette — fixed, never themed, never decorative */
   --status-good: #0ca30c;
   --status-warning: #fab219;
   --status-serious: #ec835a;
   --status-critical: #d03b3b;
 
-  /* Single sequential hue for magnitude bars */
+  /* Data: single sequential hue for magnitude */
   --bar: #3987e5;
-  --bar-dim: #1c5cab;
+
+  /* Brand accent + glow. Decorative only. */
+  --accent: #5aa9ff;
+  --accent-dim: #1c5cab;
+  --glow: rgba(90, 169, 255, 0.35);
 
   --font-sans: system-ui, -apple-system, "Segoe UI", sans-serif;
   --font-mono: ui-monospace, "SF Mono", Menlo, Consolas, monospace;
@@ -55,29 +65,85 @@ body {
   font-family: var(--font-sans);
   -webkit-font-smoothing: antialiased;
   line-height: 1.5;
+  overflow-x: hidden;
 }
 
-/* Subtle grid backdrop — recessive, never competing with data. */
+/* Phosphor grid + vignette. Recessive — it must never fight the data. */
 body::before {
+  content: "";
+  position: fixed;
+  inset: 0;
+  z-index: -2;
+  pointer-events: none;
+  background-image: linear-gradient(var(--hairline) 1px, transparent 1px),
+    linear-gradient(90deg, var(--hairline) 1px, transparent 1px);
+  background-size: 56px 56px;
+  opacity: 0.4;
+  mask-image: radial-gradient(ellipse 90% 55% at 50% 0%, #000 25%, transparent 78%);
+}
+
+/* Scanlines. Very low contrast; texture, not decoration you have to read past. */
+body::after {
   content: "";
   position: fixed;
   inset: 0;
   z-index: -1;
   pointer-events: none;
-  background-image: linear-gradient(var(--hairline) 1px, transparent 1px),
-    linear-gradient(90deg, var(--hairline) 1px, transparent 1px);
-  background-size: 64px 64px;
-  opacity: 0.35;
-  mask-image: radial-gradient(ellipse 80% 60% at 50% 0%, #000 30%, transparent 75%);
+  background: repeating-linear-gradient(
+    180deg,
+    rgba(255, 255, 255, 0.016) 0px,
+    rgba(255, 255, 255, 0.016) 1px,
+    transparent 1px,
+    transparent 3px
+  );
 }
 
 .shell {
-  max-width: 940px;
+  max-width: 1000px;
   margin: 0 auto;
-  padding: 28px 20px 80px;
+  padding: 0 20px 90px;
 }
 
-/* ---------- Header ---------- */
+/* ---------- Command tape ---------- */
+
+.tape {
+  border-bottom: 1px solid var(--hairline);
+  background: rgba(26, 26, 25, 0.6);
+  overflow: hidden;
+  position: relative;
+}
+
+.tape-track {
+  display: flex;
+  gap: 40px;
+  width: max-content;
+  padding: 9px 0;
+  animation: tape 48s linear infinite;
+}
+
+.tape-item {
+  font-family: var(--font-mono);
+  font-size: 12px;
+  color: var(--text-muted);
+  white-space: nowrap;
+}
+
+.tape-item b {
+  color: var(--accent);
+  font-weight: 500;
+}
+
+@keyframes tape {
+  from {
+    transform: translateX(0);
+  }
+  to {
+    /* The list is rendered twice, so -50% is a seamless loop. */
+    transform: translateX(-50%);
+  }
+}
+
+/* ---------- Topbar ---------- */
 
 .topbar {
   display: flex;
@@ -85,30 +151,33 @@ body::before {
   justify-content: space-between;
   gap: 16px;
   flex-wrap: wrap;
-  padding-bottom: 20px;
+  padding: 18px 0;
   border-bottom: 1px solid var(--hairline);
 }
 
 .brand {
   display: flex;
   align-items: baseline;
-  gap: 10px;
+  gap: 11px;
 }
 
 .brand-mark {
   font-family: var(--font-mono);
-  font-size: 20px;
+  font-size: 21px;
   font-weight: 700;
-  letter-spacing: -0.02em;
+  letter-spacing: -0.03em;
+  text-shadow: 0 0 22px var(--glow);
 }
 
 .brand-mark span {
-  color: var(--bar);
+  color: var(--accent);
 }
 
 .brand-sub {
-  font-size: 12px;
+  font-size: 11px;
+  font-family: var(--font-mono);
   color: var(--text-muted);
+  letter-spacing: 0.04em;
 }
 
 .user {
@@ -126,28 +195,52 @@ body::before {
   border: 1px solid var(--ring);
 }
 
+/* A pulsing dot for genuinely-live things only. */
+.live-dot {
+  width: 7px;
+  height: 7px;
+  border-radius: 50%;
+  background: var(--status-good);
+  box-shadow: 0 0 10px var(--status-good);
+  animation: pulse 2.2s ease-in-out infinite;
+  flex-shrink: 0;
+}
+
+@keyframes pulse {
+  0%, 100% { opacity: 1; }
+  50% { opacity: 0.35; }
+}
+
 /* ---------- Buttons ---------- */
 
 .btn {
   font-family: inherit;
   font-size: 14px;
   font-weight: 600;
-  padding: 9px 16px;
-  border-radius: 8px;
+  padding: 10px 17px;
+  border-radius: 9px;
   border: 1px solid var(--ring);
   background: var(--surface-2);
   color: var(--text-primary);
   cursor: pointer;
-  transition: background 120ms ease, border-color 120ms ease;
+  transition: background 130ms ease, border-color 130ms ease, transform 130ms ease;
+  text-decoration: none;
+  display: inline-flex;
+  align-items: center;
+  gap: 8px;
 }
 
 .btn:hover:not(:disabled) {
-  background: #2b2b29;
-  border-color: rgba(255, 255, 255, 0.2);
+  background: var(--surface-3);
+  border-color: rgba(255, 255, 255, 0.22);
+}
+
+.btn:active:not(:disabled) {
+  transform: translateY(1px);
 }
 
 .btn:disabled {
-  opacity: 0.5;
+  opacity: 0.45;
   cursor: not-allowed;
 }
 
@@ -155,60 +248,141 @@ body::before {
   background: var(--text-primary);
   color: #000;
   border-color: transparent;
-  display: inline-flex;
-  align-items: center;
-  gap: 8px;
 }
 
 .btn-x:hover:not(:disabled) {
-  background: #e6e6e6;
+  background: #e4e4e4;
   border-color: transparent;
 }
 
 .btn-primary {
   background: var(--bar);
   border-color: transparent;
+  box-shadow: 0 0 24px rgba(57, 135, 229, 0.3);
 }
 
 .btn-primary:hover:not(:disabled) {
   background: #2a78d6;
   border-color: transparent;
+  box-shadow: 0 0 32px rgba(57, 135, 229, 0.45);
 }
 
 .btn-ghost {
   background: transparent;
   font-weight: 500;
   font-size: 13px;
-  padding: 6px 10px;
+  padding: 6px 11px;
 }
 
-/* ---------- Hero / intro ---------- */
+.link-btn {
+  font: inherit;
+  color: var(--accent);
+  background: none;
+  border: 0;
+  padding: 0;
+  cursor: pointer;
+  text-decoration: underline;
+  text-underline-offset: 2px;
+}
+
+.link-btn:hover {
+  color: var(--text-primary);
+}
+
+/* ---------- Hero ---------- */
 
 .hero {
-  padding: 44px 0 28px;
+  padding: 66px 0 34px;
+  position: relative;
+}
+
+/* Glow bloom behind the headline. */
+.hero::before {
+  content: "";
+  position: absolute;
+  top: -70px;
+  left: 50%;
+  transform: translateX(-50%);
+  width: 700px;
+  height: 380px;
+  background: radial-gradient(ellipse at center, var(--glow) 0%, transparent 68%);
+  opacity: 0.5;
+  pointer-events: none;
+  z-index: -1;
+  filter: blur(28px);
+}
+
+.eyebrow {
+  display: inline-flex;
+  align-items: center;
+  gap: 9px;
+  font-family: var(--font-mono);
+  font-size: 11px;
+  letter-spacing: 0.1em;
+  text-transform: uppercase;
+  color: var(--text-secondary);
+  border: 1px solid var(--hairline);
+  background: var(--surface-1);
+  padding: 6px 12px;
+  border-radius: 999px;
+  margin-bottom: 22px;
 }
 
 .hero h1 {
-  font-size: clamp(28px, 5vw, 42px);
-  line-height: 1.1;
-  letter-spacing: -0.03em;
-  margin: 0 0 14px;
+  font-size: clamp(34px, 7.2vw, 68px);
+  line-height: 0.98;
+  letter-spacing: -0.045em;
+  font-weight: 700;
+  margin: 0 0 20px;
+  max-width: 20ch;
+}
+
+.hero h1 em {
+  font-style: normal;
+  color: var(--accent);
+  text-shadow: 0 0 40px var(--glow);
 }
 
 .hero p {
   color: var(--text-secondary);
-  font-size: 16px;
-  max-width: 62ch;
-  margin: 0 0 8px;
+  font-size: clamp(15px, 1.8vw, 18px);
+  max-width: 60ch;
+  margin: 0 0 10px;
 }
 
 .hero .fine {
   color: var(--text-muted);
   font-size: 13px;
-  max-width: 62ch;
+  max-width: 60ch;
 }
 
-/* ---------- Audit form ---------- */
+/* ---------- Terminal console ---------- */
+
+.console {
+  margin-top: 26px;
+  border: 1px solid var(--hairline);
+  border-radius: 14px;
+  background: linear-gradient(180deg, var(--surface-1), #151514);
+  overflow: hidden;
+  box-shadow: 0 24px 60px rgba(0, 0, 0, 0.5);
+}
+
+.console-bar {
+  display: flex;
+  align-items: center;
+  gap: 9px;
+  padding: 10px 14px;
+  border-bottom: 1px solid var(--hairline);
+  background: rgba(0, 0, 0, 0.28);
+  font-family: var(--font-mono);
+  font-size: 11px;
+  color: var(--text-muted);
+  letter-spacing: 0.05em;
+}
+
+.console-body {
+  padding: 18px;
+}
 
 .panel {
   background: var(--surface-1);
@@ -229,15 +403,19 @@ body::before {
   min-width: 0;
   font-family: var(--font-mono);
   font-size: 14px;
-  padding: 11px 13px;
-  border-radius: 8px;
+  padding: 12px 14px;
+  border-radius: 9px;
   border: 1px solid var(--hairline);
-  background: var(--page);
+  background: #0e0e0d;
   color: var(--text-primary);
 }
 
+.input::placeholder {
+  color: #6c6a65;
+}
+
 .input:focus {
-  outline: 2px solid var(--bar);
+  outline: 2px solid var(--accent);
   outline-offset: -1px;
   border-color: transparent;
 }
@@ -245,87 +423,153 @@ body::before {
 .select {
   font-family: inherit;
   font-size: 14px;
-  padding: 11px 13px;
-  border-radius: 8px;
+  padding: 12px 14px;
+  border-radius: 9px;
   border: 1px solid var(--hairline);
-  background: var(--page);
+  background: #0e0e0d;
   color: var(--text-primary);
 }
 
 .form-note {
-  margin-top: 10px;
+  margin-top: 11px;
   font-size: 12px;
   color: var(--text-muted);
 }
 
-/* An inline text button that reads as a link, for "try this example". */
-.link-btn {
-  font: inherit;
-  color: var(--bar);
-  background: none;
-  border: 0;
-  padding: 0;
-  cursor: pointer;
-  text-decoration: underline;
-  text-underline-offset: 2px;
-}
+/* ---------- Steps ---------- */
 
-.link-btn:hover {
-  color: var(--text-primary);
-}
-
-/* ---------- "What gets checked" ---------- */
-
-.checks {
+.steps {
   display: grid;
-  grid-template-columns: repeat(auto-fit, minmax(250px, 1fr));
-  gap: 1px;
-  background: var(--hairline);
+  grid-template-columns: repeat(auto-fit, minmax(230px, 1fr));
+  gap: 14px;
+}
+
+.step {
   border: 1px solid var(--hairline);
   border-radius: 12px;
+  padding: 18px;
+  background: var(--surface-1);
+  position: relative;
   overflow: hidden;
 }
 
-.check {
-  background: var(--surface-1);
-  padding: 16px;
+.step-num {
+  font-family: var(--font-mono);
+  font-size: 40px;
+  font-weight: 700;
+  line-height: 1;
+  color: transparent;
+  -webkit-text-stroke: 1px var(--baseline);
+  letter-spacing: -0.04em;
 }
 
-.check-title {
-  font-size: 14px;
+.step-title {
+  font-size: 15px;
   font-weight: 650;
-  letter-spacing: -0.01em;
+  margin-top: 8px;
 }
 
-.check-body {
+.step-body {
   font-size: 13px;
   color: var(--text-secondary);
   margin-top: 5px;
 }
 
-.limits {
-  margin: 0;
-  padding-left: 20px;
-  font-size: 13px;
-  color: var(--text-secondary);
+/* ---------- Capability grid ---------- */
+
+.caps {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(255px, 1fr));
+  gap: 1px;
+  background: var(--hairline);
+  border: 1px solid var(--hairline);
+  border-radius: 13px;
+  overflow: hidden;
 }
 
-.limits li + li {
-  margin-top: 9px;
+.cap {
+  background: var(--surface-1);
+  padding: 17px;
+  transition: background 130ms ease;
+}
+
+.cap:hover {
+  background: var(--surface-2);
+}
+
+.cap-head {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 10px;
+}
+
+.cap-title {
+  font-size: 14px;
+  font-weight: 650;
+  letter-spacing: -0.01em;
+}
+
+/* Honest status badge. "Live" means it works right now; anything else says so. */
+.cap-status {
+  font-family: var(--font-mono);
+  font-size: 9px;
+  font-weight: 700;
+  letter-spacing: 0.09em;
+  padding: 3px 7px;
+  border-radius: 4px;
+  border: 1px solid currentColor;
+  flex-shrink: 0;
+}
+
+.cap-live {
+  color: var(--status-good);
+}
+
+.cap-planned {
+  color: var(--text-muted);
+}
+
+.cap-body {
+  font-size: 13px;
+  color: var(--text-secondary);
+  margin-top: 7px;
+}
+
+/* ---------- Section headings ---------- */
+
+.section-title {
+  font-family: var(--font-mono);
+  font-size: 11px;
+  font-weight: 700;
+  letter-spacing: 0.13em;
+  text-transform: uppercase;
+  color: var(--text-muted);
+  margin: 44px 0 15px;
+  display: flex;
+  align-items: center;
+  gap: 11px;
+}
+
+.section-title::after {
+  content: "";
+  flex: 1;
+  height: 1px;
+  background: var(--hairline);
 }
 
 /* ---------- Alerts ---------- */
 
 .alert {
   margin-top: 16px;
-  padding: 12px 14px;
-  border-radius: 8px;
+  padding: 13px 15px;
+  border-radius: 9px;
   font-size: 13px;
   border: 1px solid var(--ring);
   background: var(--surface-1);
   color: var(--text-secondary);
   display: flex;
-  gap: 10px;
+  gap: 11px;
 }
 
 .alert strong {
@@ -345,10 +589,10 @@ body::before {
   color: var(--status-critical);
 }
 
-/* ---------- Result: hero risk tile ---------- */
+/* ---------- Report ---------- */
 
 .result {
-  margin-top: 24px;
+  margin-top: 26px;
 }
 
 .token-head {
@@ -362,9 +606,9 @@ body::before {
 }
 
 .token-name {
-  font-size: 20px;
-  font-weight: 650;
-  letter-spacing: -0.01em;
+  font-size: 22px;
+  font-weight: 700;
+  letter-spacing: -0.02em;
   margin: 0;
 }
 
@@ -372,12 +616,12 @@ body::before {
   font-family: var(--font-mono);
   font-size: 12px;
   color: var(--text-muted);
-  margin-top: 4px;
+  margin-top: 5px;
   word-break: break-all;
 }
 
 .token-meta a {
-  color: var(--bar);
+  color: var(--accent);
   text-decoration: none;
 }
 
@@ -389,19 +633,20 @@ body::before {
 .score-tile {
   display: flex;
   align-items: center;
-  gap: 18px;
-  padding: 22px 0;
+  gap: 20px;
+  padding: 26px 0;
+  flex-wrap: wrap;
 }
 
 .score-figure {
-  font-size: 60px;
+  font-size: clamp(56px, 11vw, 82px);
   font-weight: 700;
   line-height: 1;
-  letter-spacing: -0.04em;
+  letter-spacing: -0.05em;
 }
 
 .score-figure small {
-  font-size: 20px;
+  font-size: 22px;
   font-weight: 500;
   color: var(--text-muted);
   letter-spacing: 0;
@@ -410,15 +655,17 @@ body::before {
 .score-verdict {
   display: flex;
   align-items: center;
-  gap: 8px;
-  font-size: 18px;
-  font-weight: 650;
+  gap: 9px;
+  font-size: 19px;
+  font-weight: 700;
+  letter-spacing: -0.01em;
 }
 
 .score-blurb {
   font-size: 13px;
   color: var(--text-secondary);
-  margin-top: 4px;
+  margin-top: 5px;
+  max-width: 52ch;
 }
 
 .score-icon {
@@ -428,21 +675,12 @@ body::before {
 
 /* ---------- Findings ---------- */
 
-.section-title {
-  font-size: 12px;
-  font-weight: 650;
-  letter-spacing: 0.08em;
-  text-transform: uppercase;
-  color: var(--text-muted);
-  margin: 28px 0 12px;
-}
-
 .finding {
   display: grid;
   grid-template-columns: 20px 92px 1fr;
-  gap: 10px;
+  gap: 11px;
   align-items: start;
-  padding: 11px 0;
+  padding: 13px 0;
   border-top: 1px solid var(--hairline);
   font-size: 14px;
 }
@@ -452,7 +690,7 @@ body::before {
   text-align: center;
 }
 
-/* The label is text, so severity is never conveyed by color alone. */
+/* The label is text, so severity is never conveyed by colour alone. */
 .finding-label {
   font-family: var(--font-mono);
   font-size: 11px;
@@ -462,33 +700,21 @@ body::before {
 }
 
 .finding-title {
-  font-weight: 550;
+  font-weight: 600;
 }
 
 .finding-detail {
   color: var(--text-secondary);
   font-size: 13px;
-  margin-top: 3px;
+  margin-top: 4px;
 }
 
-.sev-critical {
-  color: var(--status-critical);
-}
-.sev-high {
-  color: var(--status-serious);
-}
-.sev-medium {
-  color: var(--status-warning);
-}
-.sev-low {
-  color: var(--text-muted);
-}
-.sev-good {
-  color: var(--status-good);
-}
-.sev-info {
-  color: var(--text-muted);
-}
+.sev-critical { color: var(--status-critical); }
+.sev-high { color: var(--status-serious); }
+.sev-medium { color: var(--status-warning); }
+.sev-low { color: var(--text-muted); }
+.sev-good { color: var(--status-good); }
+.sev-info { color: var(--text-muted); }
 
 /* ---------- Launch stat tiles ---------- */
 
@@ -498,52 +724,55 @@ body::before {
   gap: 1px;
   background: var(--hairline);
   border: 1px solid var(--hairline);
-  border-radius: 10px;
+  border-radius: 11px;
   overflow: hidden;
 }
 
 .stat {
   background: var(--surface-1);
-  padding: 13px 14px;
+  padding: 14px 15px;
 }
 
 .stat-label {
+  font-family: var(--font-mono);
   font-size: 10px;
-  font-weight: 650;
-  letter-spacing: 0.08em;
+  font-weight: 700;
+  letter-spacing: 0.09em;
   text-transform: uppercase;
   color: var(--text-muted);
 }
 
 /* Proportional figures for standalone tile values (not a vertical column). */
 .stat-value {
-  font-size: 19px;
-  font-weight: 650;
-  letter-spacing: -0.02em;
-  margin-top: 3px;
+  font-size: 20px;
+  font-weight: 700;
+  letter-spacing: -0.025em;
+  margin-top: 4px;
 }
 
 .stat-sub {
   font-size: 11px;
   color: var(--text-muted);
-  margin-top: 2px;
+  margin-top: 3px;
 }
 
 /* Graduation progress — one value against a threshold, so a meter, not a chart. */
 .meter {
-  margin-top: 14px;
+  margin-top: 15px;
 }
 
 .meter-head {
   display: flex;
   justify-content: space-between;
   align-items: baseline;
+  gap: 12px;
   font-size: 12px;
   color: var(--text-secondary);
-  margin-bottom: 6px;
+  margin-bottom: 7px;
+  flex-wrap: wrap;
 }
 
-.meter-head .meter-num {
+.meter-num {
   font-family: var(--font-mono);
   font-variant-numeric: tabular-nums;
 }
@@ -560,32 +789,27 @@ body::before {
   background: var(--bar);
   border-radius: 0 5px 5px 0;
   min-width: 2px;
+  box-shadow: 0 0 14px rgba(57, 135, 229, 0.5);
 }
 
 .socials {
   display: flex;
   flex-wrap: wrap;
   gap: 8px;
-  margin-top: 12px;
+  margin-top: 13px;
 }
 
 .social-chip {
   font-size: 12px;
-  padding: 4px 10px;
+  padding: 5px 11px;
   border-radius: 999px;
   border: 1px solid var(--hairline);
   color: var(--text-secondary);
-  text-decoration: none;
   background: var(--surface-1);
-  max-width: 260px;
+  max-width: 270px;
   overflow: hidden;
   text-overflow: ellipsis;
   white-space: nowrap;
-}
-
-.social-chip:hover {
-  color: var(--text-primary);
-  border-color: var(--ring);
 }
 
 /* ---------- Holder bars (single-series magnitude) ---------- */
@@ -619,7 +843,7 @@ body::before {
   height: 16px;
   display: flex;
   align-items: center;
-  gap: 8px;
+  gap: 9px;
 }
 
 .bar-fill {
@@ -628,11 +852,11 @@ body::before {
   border-radius: 0 4px 4px 0;
   background: var(--bar);
   min-width: 2px;
-  transition: filter 120ms ease;
+  transition: filter 130ms ease;
 }
 
 .bar-row:hover .bar-fill {
-  filter: brightness(1.25);
+  filter: brightness(1.3);
 }
 
 .bar-label {
@@ -648,19 +872,32 @@ body::before {
   color: var(--text-secondary);
 }
 
+/* ---------- Limits list ---------- */
+
+.limits {
+  margin: 0;
+  padding-left: 20px;
+  font-size: 13px;
+  color: var(--text-secondary);
+}
+
+.limits li + li {
+  margin-top: 10px;
+}
+
 /* ---------- Footer ---------- */
 
 .disclaimer {
-  margin-top: 40px;
-  padding-top: 18px;
+  margin-top: 52px;
+  padding-top: 20px;
   border-top: 1px solid var(--hairline);
   font-size: 12px;
   color: var(--text-muted);
 }
 
 .disclaimer p {
-  margin: 0 0 8px;
-  max-width: 78ch;
+  margin: 0 0 9px;
+  max-width: 80ch;
 }
 
 .spinner {
@@ -671,8 +908,7 @@ body::before {
   border-top-color: var(--text-primary);
   border-radius: 50%;
   animation: spin 700ms linear infinite;
-  vertical-align: -2px;
-  margin-right: 7px;
+  flex-shrink: 0;
 }
 
 @keyframes spin {
@@ -681,7 +917,15 @@ body::before {
   }
 }
 
+/* ---------- Motion & responsive ---------- */
+
 @media (prefers-reduced-motion: reduce) {
+  .tape-track {
+    animation: none;
+  }
+  .live-dot {
+    animation: none;
+  }
   .spinner {
     animation-duration: 2s;
   }
@@ -697,12 +941,18 @@ body::before {
   .finding-label {
     display: none;
   }
-  /* Keep the text label visible on small screens by folding it into the title. */
+  /* Fold the text label into the title so severity stays readable without colour. */
   .finding-title::before {
     content: attr(data-sev) " · ";
     font-family: var(--font-mono);
     font-size: 11px;
     letter-spacing: 0.06em;
     color: inherit;
+  }
+  .hero {
+    padding-top: 44px;
+  }
+  .score-tile {
+    gap: 14px;
   }
 }

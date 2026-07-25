@@ -30,39 +30,81 @@ const VERDICT = {
  */
 const EXAMPLE_TOKEN = "0x39dBED3a2bd333467115dE45665cC57F813C4571";
 
-/** What the audit actually does, shown up front so the page explains itself. */
-const CHECKS = [
+/** Scrolling command tape. Rendered twice so the marquee loops seamlessly. */
+const TAPE = [
+  ["audit", "0x39dB…4571"],
+  ["simulate sell", "0.01 WETH round trip"],
+  ["scan", "mint · blacklist · pause"],
+  ["holders", "top 10 concentration"],
+  ["launch state", "graduation · fee split"],
+  ["verify", "deployed by pons?"],
+];
+
+const STEPS = [
+  {
+    title: "Paste an address",
+    body: "Only the contract address identifies a token. Names, symbols and images can be copied by anyone — the pons docs say so themselves.",
+  },
+  {
+    title: "The agent reads the chain",
+    body: "Bytecode, owner, proxy slots, holders, and the launch record from the factory that deployed it. No off-chain index, no API to trust.",
+  },
+  {
+    title: "It tries to sell",
+    body: "A simulated buy and sell through the real pool. If the sell reverts, money goes in and cannot come out — and you found that out for free.",
+  },
+];
+
+/**
+ * What the agent can do. `live` is the honest bit: it means the capability works
+ * right now, in this deployment. Anything else says planned, so the page never
+ * implies a feature that is not wired up.
+ */
+const CAPS = [
   {
     title: "Honeypot simulation",
-    body: "Quotes a buy and a sell through the real pool. The quote runs the token's own transfer logic, so a sell block shows up as a reverting sell — before you spend anything.",
+    live: true,
+    body: "Quotes a buy and a sell through the real Uniswap V3 pool. The quote runs the token's own transfer logic, so a sell block surfaces as a reverting sell — spending nothing and granting no approval.",
   },
   {
-    title: "Sell tax",
-    body: "Measures the round-trip loss. Around 2–4% is normal pool fees. 20% or more means a transfer tax is eating your trade; 50% is a soft honeypot.",
+    title: "Sell-tax measurement",
+    live: true,
+    body: "Round-trip loss. Around 2–4% is normal pool fees. 20%+ means a transfer tax is eating your trade; 50%+ is a soft honeypot — technically sellable, practically not.",
   },
   {
-    title: "Owner powers",
-    body: "Reads the contract's own bytecode for mint, blacklist, pause, setFee and friends. Works on unverified contracts, which is most of a launchpad.",
+    title: "Owner-power scan",
+    live: true,
+    body: "Reads PUSH4 selectors straight out of the deployed dispatcher to find mint, blacklist, pause, setFee, setMaxTxAmount. Works on unverified contracts, which is most of a launchpad.",
   },
   {
-    title: "Ownership",
-    body: "Renounced ownership counts in a token's favour. A live owner holding privileged functions is the worst case — they can change the rules while you hold.",
-  },
-  {
-    title: "Upgradeable proxy",
-    body: "Checks the implementation slots. Upgradeable logic can gain a sell block after you buy, so a clean scan today guarantees nothing tomorrow.",
+    title: "Proxy & ownership",
+    live: true,
+    body: "Renounced ownership counts in a token's favour. A live owner holding privileged functions is the worst case. Upgradeable logic can gain a sell block after you buy.",
   },
   {
     title: "Holder concentration",
-    body: "Replays transfers to rank holders. A pool legitimately holds a large share — the report says so instead of assuming the worst.",
+    live: true,
+    body: "Replays Transfer events and ranks holders. A pool legitimately holds a large share, so this is flagged for review rather than called malice.",
   },
   {
-    title: "pons launch state",
-    body: "Reads the deploying factory for the exact pool, fee tier, graduation progress and fee split. Graduation is a liquidity marker, not a safety badge.",
+    title: "pons launch record",
+    live: true,
+    body: "Exact pool and fee tier from the deploying factory, graduation progress, creator fee split, payout wallet, and whether launch protection is still active.",
   },
   {
-    title: "Impersonation",
-    body: "If neither pons factory deployed it, that is reported. Names, symbols and images can be copied freely — only the address is identity.",
+    title: "Trade from the terminal",
+    live: false,
+    body: "Buy and sell through the pons router, signed in your own wallet in your browser. Not wired up yet — it needs a wallet connection, and no key should ever reach the server.",
+  },
+  {
+    title: "Commands from X",
+    live: false,
+    body: "Mention the bot in a post and have it act. Not built: it requires a wallet the server can sign with unattended, which is the single biggest security decision in a product like this.",
+  },
+  {
+    title: "Launch a token",
+    live: false,
+    body: "Deploy through the pons factory — fixed 1B supply, WETH pool and locked liquidity in one transaction. Not built: the launch fee and the signature must come from your wallet, never from here.",
   },
 ];
 
@@ -155,45 +197,63 @@ export default function Home() {
     : [];
 
   return (
-    <div className="shell">
-      <header className="topbar">
-        <div className="brand">
-          <div className="brand-mark">
-            pons<span>/</span>sentinel
-          </div>
-          <div className="brand-sub">Robinhood Chain · read-only</div>
+    <>
+      {/* Command tape. The list is duplicated so the marquee loops seamlessly. */}
+      <div className="tape" aria-hidden="true">
+        <div className="tape-track">
+          {[...TAPE, ...TAPE].map(([cmd, arg], i) => (
+            <span className="tape-item" key={i}>
+              <b>▸ {cmd}</b> {arg}
+            </span>
+          ))}
         </div>
+      </div>
 
-        {loadingSession ? (
-          <span className="brand-sub">…</span>
-        ) : user ? (
-          <div className="user">
-            {user.avatar && <img className="avatar" src={user.avatar} alt="" />}
-            <span>@{user.username}</span>
-            <button className="btn btn-ghost" onClick={logout}>
-              Sign out
-            </button>
+      <div className="shell">
+        <header className="topbar">
+          <div className="brand">
+            <div className="brand-mark">
+              pons<span>/</span>sentinel
+            </div>
+            <div className="brand-sub">ROBINHOOD CHAIN · CHAIN ID 4663</div>
           </div>
-        ) : authConfigured ? (
-          <a className="btn btn-x" href="/api/auth/x/login">
-            <XLogo /> Sign in with X
-          </a>
-        ) : null /* X credentials absent — audits still work, so show nothing
-                    rather than a "not configured" notice that reads as broken. */}
-      </header>
 
-      <section className="hero">
-        <h1>Find out if you can sell it — before you buy it.</h1>
-        <p>
-          Pons Sentinel simulates a full buy-then-sell round trip against the real pool on
-          Robinhood Chain. If the sell reverts, the token is a honeypot and you learn that for
-          free instead of with your money.
-        </p>
-        <p className="fine">
-          Every check is read-only. This tool never asks for your wallet, never requests an
-          approval, and cannot move funds.
-        </p>
-      </section>
+          {loadingSession ? (
+            <span className="brand-sub">…</span>
+          ) : user ? (
+            <div className="user">
+              {user.avatar && <img className="avatar" src={user.avatar} alt="" />}
+              <span>@{user.username}</span>
+              <button className="btn btn-ghost" onClick={logout}>
+                Sign out
+              </button>
+            </div>
+          ) : authConfigured ? (
+            <a className="btn btn-x" href="/api/auth/x/login">
+              <XLogo /> Sign in with X
+            </a>
+          ) : null /* X credentials absent — audits still work, so show nothing
+                      rather than a "not configured" notice that reads as broken. */}
+        </header>
+
+        <section className="hero">
+          <div className="eyebrow">
+            <span className="live-dot" />
+            Reading Robinhood Chain live
+          </div>
+          <h1>
+            Find out if you can <em>sell it</em> before you buy it.
+          </h1>
+          <p>
+            Every launch looks the same until you try to leave. This agent simulates a full
+            buy-then-sell round trip against the real pool — if the sell reverts, the token is a
+            honeypot, and you found out for free instead of with your money.
+          </p>
+          <p className="fine">
+            Read-only. It never asks for your wallet, never requests an approval, and cannot move
+            funds.
+          </p>
+        </section>
 
       {sessionError && (
         <div className="alert alert-error">
@@ -211,54 +271,60 @@ export default function Home() {
         </div>
       )}
 
-      <div className="panel">
-        <div className="form-row">
-          <input
-            className="input"
-            placeholder="0x… token contract address"
-            value={address}
-            onChange={(e) => setAddress(e.target.value)}
-            onKeyDown={(e) => e.key === "Enter" && user && !busy && runAudit()}
-            spellCheck={false}
-            aria-label="Token contract address"
-          />
-          <select
-            className="select"
-            value={network}
-            onChange={(e) => setNetwork(e.target.value)}
-            aria-label="Network"
-          >
-            <option value="robinhood">Robinhood Chain</option>
-            <option value="robinhoodTestnet">Robinhood Testnet</option>
-            <option value="local">Local EVM</option>
-          </select>
-          <button
-            className="btn btn-primary"
-            onClick={runAudit}
-            disabled={busy || !address.trim()}
-          >
-            {busy ? (
-              <>
-                <span className="spinner" />
-                Auditing…
-              </>
-            ) : (
-              "Run audit"
-            )}
-          </button>
+      <div className="console">
+        <div className="console-bar">
+          <span className="live-dot" />
+          AGENT · READY
         </div>
-        <div className="form-note">
-          Simulates a 0.01 WETH round trip through the token's Uniswap V3 pool.{" "}
-          <button
-            className="link-btn"
-            onClick={() => {
-              setNetwork("robinhood");
-              setAddress(EXAMPLE_TOKEN);
-            }}
-          >
-            Try it with $PONS
-          </button>
-          {!user && " · No sign-in needed. Signing in with X raises the rate limit."}
+        <div className="console-body">
+          <div className="form-row">
+            <input
+              className="input"
+              placeholder="0x… token contract address"
+              value={address}
+              onChange={(e) => setAddress(e.target.value)}
+              onKeyDown={(e) => e.key === "Enter" && !busy && address.trim() && runAudit()}
+              spellCheck={false}
+              aria-label="Token contract address"
+            />
+            <select
+              className="select"
+              value={network}
+              onChange={(e) => setNetwork(e.target.value)}
+              aria-label="Network"
+            >
+              <option value="robinhood">Robinhood Chain</option>
+              <option value="robinhoodTestnet">Robinhood Testnet</option>
+              <option value="local">Local EVM</option>
+            </select>
+            <button
+              className="btn btn-primary"
+              onClick={runAudit}
+              disabled={busy || !address.trim()}
+            >
+              {busy ? (
+                <>
+                  <span className="spinner" />
+                  Auditing…
+                </>
+              ) : (
+                "Run audit"
+              )}
+            </button>
+          </div>
+          <div className="form-note">
+            Simulates a 0.01 WETH round trip through the token's Uniswap V3 pool.{" "}
+            <button
+              className="link-btn"
+              onClick={() => {
+                setNetwork("robinhood");
+                setAddress(EXAMPLE_TOKEN);
+              }}
+            >
+              Try it with $PONS
+            </button>
+            {!user && " · No sign-in needed. Signing in with X raises the rate limit."}
+          </div>
         </div>
       </div>
 
@@ -273,12 +339,29 @@ export default function Home() {
 
       {!report && !busy && (
         <>
-          <div className="section-title">What gets checked</div>
-          <div className="checks">
-            {CHECKS.map((check) => (
-              <div className="check" key={check.title}>
-                <div className="check-title">{check.title}</div>
-                <div className="check-body">{check.body}</div>
+          <div className="section-title">How it works</div>
+          <div className="steps">
+            {STEPS.map((step, i) => (
+              <div className="step" key={step.title}>
+                <div className="step-num">0{i + 1}</div>
+                <div className="step-title">{step.title}</div>
+                <div className="step-body">{step.body}</div>
+              </div>
+            ))}
+          </div>
+
+          <div className="section-title">Capabilities</div>
+          <div className="caps">
+            {CAPS.map((cap) => (
+              <div className="cap" key={cap.title}>
+                <div className="cap-head">
+                  <div className="cap-title">{cap.title}</div>
+                  {/* Status is a word, not a colour — "planned" is never dressed as live. */}
+                  <div className={`cap-status ${cap.live ? "cap-live" : "cap-planned"}`}>
+                    {cap.live ? "LIVE" : "PLANNED"}
+                  </div>
+                </div>
+                <div className="cap-body">{cap.body}</div>
               </div>
             ))}
           </div>
@@ -287,16 +370,16 @@ export default function Home() {
           <div className="panel">
             <ul className="limits">
               <li>
-                A trap keyed on your address, the block number, or an allowlist can
-                quote clean and still fail for you in a real transaction.
+                A trap keyed on your address, the block number, or an allowlist can quote
+                clean and still fail for you in a real transaction.
               </li>
               <li>
-                A blacklist can be applied <em>after</em> you pass a clean audit. An
-                owner who can raise the fee can do it the minute you buy.
+                A blacklist can be applied <em>after</em> you pass a clean audit. An owner
+                who can raise the fee can do it the minute you buy.
               </li>
               <li>
-                Contract safety is not investment quality. Most launchpad tokens go
-                to zero with completely ordinary contracts.
+                Contract safety is not investment quality. Most launchpad tokens go to zero
+                with completely ordinary contracts.
               </li>
             </ul>
           </div>
@@ -319,8 +402,9 @@ export default function Home() {
           documentation, and type domains manually — lookalike launchpad domains are a common way
           wallets get drained.
         </p>
-      </footer>
-    </div>
+        </footer>
+      </div>
+    </>
   );
 }
 
