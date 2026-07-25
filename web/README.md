@@ -96,19 +96,77 @@ Stated in the UI too, because a scanner that oversells itself is dangerous:
 
 ---
 
-## ⚠️ Verify the Pons addresses before risking money
+## Contract addresses
 
-The Pons factory / router / quoter / WETH addresses in `agent/lib/chains.js` were
-transcribed from **third-party reporting** of the Pons documentation, not read
-from the official docs directly. Check every one against
-<https://docs.ponsfamily.com/> and the Robinhood Chain explorer, then override
-them in `.env.local`.
+`lib/engine/chains.js` now carries the addresses from the official pons
+documentation (Integration → Contracts), including both the active and legacy
+factories and their start blocks. Every value can be overridden from `.env.local`.
 
-A wrong or lookalike router address is one of the most common ways wallets get
-drained. Note also that `ponfamily.com` (missing the "s") is **not** the real
-site — type domains manually rather than following links from social posts.
+Two earlier values were wrong and are fixed:
 
-Pons is not affiliated with Robinhood.
+| | Was (wrong) | Now (from docs) |
+|---|---|---|
+| RPC | `rpc.chain.robinhood.com` | `rpc.mainnet.chain.robinhood.com` |
+| Explorer | `explorer.chain.robinhood.com` | `robinhoodchain.blockscout.com` |
+
+The bad RPC host meant mainnet audits could not connect at all.
+
+**Still worth checking yourself before real money is involved.** A wrong or
+lookalike router address is a classic way wallets get drained, and per the docs
+*"names and symbols can be copied — always check the token address."* Note that
+`ponfamily.com` (missing the "s") is **not** the real site; type domains manually
+rather than following links from social posts.
+
+pons is an interface, not affiliated with Robinhood, and not investment advice.
+
+---
+
+## Deploying to Vercel
+
+**If you got a 404 on Vercel, this is why:** the Next.js app lives in `web/`, not
+at the repository root. The root is a Hardhat project. Vercel built from the root,
+found no Next.js app, and served nothing.
+
+**The fix — set the root directory:**
+
+1. Vercel project → **Settings → Build and Deployment → Root Directory**
+2. Set it to `web`
+3. Redeploy
+
+Framework preset should read **Next.js** once the root directory is right. `web/`
+has no dependency on any parent directory (the engine lives in `web/lib/engine`),
+so nothing outside it is needed at build time.
+
+**Then add environment variables** (Settings → Environment Variables). Without
+`SESSION_SECRET` the app returns a setup error instead of signing anyone in:
+
+| Variable | Value |
+|---|---|
+| `SESSION_SECRET` | 64 hex chars from the command in Setup above |
+| `X_CLIENT_ID` | from your X app |
+| `X_CLIENT_SECRET` | from your X app |
+| `X_REDIRECT_URI` | `https://<your-domain>/api/auth/x/callback` |
+| `ROBINHOOD_RPC` | optional; a private RPC avoids public rate limits |
+| `AUDIT_MAX_BLOCKS` | optional; `30000` is a sane default |
+
+**Then update the X app** — go back to your app's User authentication settings and
+add the production callback URL (`https://<your-domain>/api/auth/x/callback`)
+alongside the localhost one. `X_REDIRECT_URI` must match what X has registered
+**exactly**, including scheme and any trailing path. A mismatch here is the most
+common cause of `token_exchange_failed`.
+
+Cookies switch to `secure` automatically when `NODE_ENV=production`, which Vercel
+sets for you.
+
+### Serverless caveats
+
+- **Holder concentration replays `Transfer` logs**, which can be slow. The pons
+  docs warn that the public RPC times out on wide `eth_getLogs` ranges — the
+  engine already chunks requests and degrades to a partial result rather than
+  failing, but on Vercel's default 10s function limit you may need to lower
+  `AUDIT_MAX_BLOCKS` or raise `maxDuration`.
+- **Rate limiting is in-memory**, so it resets on every cold start and does not
+  span instances. Move it to Redis (Upstash) before real traffic.
 
 ---
 

@@ -105,8 +105,16 @@ async function simulateRoundTrip(provider, chain, token, options = {}) {
   }
 
   // 1. Which pool would we even trade through?
-  if (factoryAddress) {
+  //
+  // For a pons launch we already know the answer exactly — the token reports its
+  // own `liquidityPool()` and the factory reports its `poolFee` — so we skip the
+  // guesswork entirely. `options.knownFee` carries that through.
+  if (options.knownFee) {
+    out.pools = [{ fee: Number(options.knownFee), pool: options.knownPool || null }];
+    out.poolSource = "pons launch data";
+  } else if (factoryAddress) {
     out.pools = await findPools(provider, factoryAddress, token, weth, chain.feeTiers || [10_000]);
+    out.poolSource = "probed V3 factory";
     if (out.pools.length === 0) {
       out.ran = true;
       out.findings.push({

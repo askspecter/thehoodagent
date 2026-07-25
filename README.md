@@ -16,7 +16,7 @@ round trip that detects honeypots without spending anything.
 | Path | What it is |
 |---|---|
 | **`web/`** | **The web app — this is the product.** Next.js, X (Twitter) sign-in, audit dashboard. [Setup →](web/README.md) |
-| **`agent/`** | The audit engine (`@pons/engine`). Runs server-side inside the web app. Not a command-line tool. |
+| **`web/lib/engine/`** | The audit engine. Runs server-side inside the web app. Not a command-line tool. |
 | `contracts/PonsFamilyToken.sol` | A fixed-supply ERC-20, if you ever deploy a token *independently* of Pons. |
 | `contracts/mocks/MaliciousToken.sol` | Test fixture full of rug patterns — target practice that proves the scanner fires. |
 | `test/` | 22 tests. Runs the engine against real bytecode on an in-process EVM. |
@@ -72,6 +72,8 @@ cd web && npm install && npm run dev     # the site → http://localhost:3000
 | **Ownership** | `owner()` renounced counts in the token's favour; a live owner *plus* privileged functions is the worst case. |
 | **Upgradeable proxy** | EIP-1967 / OZ-legacy implementation slots. Upgradeable logic can gain a sell block after you buy. |
 | **Concentration** | Replays `Transfer` events and ranks holders. A DEX pool legitimately holds a large share, so this is flagged for review rather than called malice. |
+| **pons launch state** | Reads the deploying factory's `getLaunchedToken` and `graduationStatus`, the token's own `liquidityPool()`/`socials()`, and the locker's fee split. Gives the exact pool and fee tier (no tier guessing), graduation progress, the creator payout wallet, and whether launch protection is still active. |
+| **Impersonation** | If neither the active nor the legacy pons factory has a record of the token, that is reported — names, symbols, and images can be copied, so only the address is identity. |
 
 The bytecode walker respects PUSH immediates rather than substring-matching, so
 PUSH *data* that happens to contain a selector's bytes does not produce a false
@@ -142,15 +144,27 @@ volume behind it.
 
 ---
 
-## ⚠️ Verify the Pons contract addresses
+## Deploying
 
-`agent/lib/chains.js` ships the Pons factory / router / quoter / WETH addresses
-transcribed from third-party reporting. **Check each against the official docs and
-the block explorer, then override them via `.env`.** A wrong or lookalike router
-address is a classic way wallets get drained — and `ponfamily.com` (no "s") is not
-the real site. Type domains manually.
+Vercel: set **Root Directory** to `web`. Building from the repository root finds
+the Hardhat project instead of the Next.js app and serves a 404. Full instructions,
+including the environment variables and the X callback URL, are in
+[web/README.md](web/README.md#deploying-to-vercel).
 
-Pons is not affiliated with Robinhood.
+## Contract addresses
+
+`web/lib/engine/chains.js` carries the addresses from the official pons docs
+(Integration → Contracts), for both the active and legacy factories. Two earlier
+guesses are corrected: the RPC host is `rpc.mainnet.chain.robinhood.com` (the
+version without `mainnet` could not connect at all) and the explorer is
+`robinhoodchain.blockscout.com`.
+
+Every value is overridable from the environment. **Check them yourself before real
+money is involved** — a wrong or lookalike router address is a classic way wallets
+get drained, and `ponfamily.com` (no "s") is not the real site. Type domains
+manually.
+
+pons is an interface, not affiliated with Robinhood, and not investment advice.
 
 ---
 

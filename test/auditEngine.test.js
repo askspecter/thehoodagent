@@ -1,16 +1,17 @@
 const { expect } = require("chai");
 const { ethers } = require("hardhat");
 
-const { auditToken } = require("../agent/lib/audit");
-const { scoreFindings, scoreReport } = require("../agent/lib/score");
+const { auditToken } = require("../web/lib/engine/audit");
+const { scoreFindings, scoreReport } = require("../web/lib/engine/score");
 const {
   scanCapabilities,
   looksLikeERC20,
   walk,
   codeSize,
-} = require("../agent/lib/bytecode");
-const { selectorOf } = require("../agent/lib/selectors");
-const { getChain } = require("../agent/lib/chains");
+} = require("../web/lib/engine/bytecode");
+const { selectorOf } = require("../web/lib/engine/selectors");
+const { getChain } = require("../web/lib/engine/chains");
+const { priceFromSqrt, readLaunch } = require("../web/lib/engine/pons");
 
 /**
  * These tests run the audit engine against contracts deployed to an in-process
@@ -142,6 +143,48 @@ describe("audit engine", function () {
       expect(report.incomplete.join(" ")).to.match(/simulation SKIPPED/i);
       // A skipped safety check must reduce stated confidence.
       expect(scoreReport(report).confidence).to.equal("partial");
+    });
+  });
+
+  describe("pons pool pricing", function () {
+    // Getting sqrtPriceX96 wrong silently produces plausible-looking but wrong
+    // prices and market caps, so the maths is pinned down here.
+    const Q96 = 2 ** 96;
+
+    it("prices a 1:1 pool as 1 in both token orderings", function () {
+      expect(priceFromSqrt(BigInt(Q96), true)).to.be.closeTo(1, 1e-9);
+      expect(priceFromSqrt(BigInt(Q96), false)).to.be.closeTo(1, 1e-9);
+    });
+
+    it("squares the sqrt ratio", function () {
+      // sqrtPrice = 2 → token1 per token0 = 4
+      expect(priceFromSqrt(BigInt(Q96 * 2), true)).to.be.closeTo(4, 1e-6);
+    });
+
+    it("inverts the price when the token is not token0", function () {
+      // Same pool read from the other side must be the reciprocal.
+      expect(priceFromSqrt(BigInt(Q96 * 2), false)).to.be.closeTo(0.25, 1e-6);
+    });
+
+    it("returns null rather than Infinity for a zero price", function () {
+      expect(priceFromSqrt(0n, true)).to.equal(null);
+      expect(priceFromSqrt(0n, false)).to.equal(null);
+    });
+  });
+
+  describe("pons launch detection", function () {
+    it("reports a non-pons token as not a launch instead of inventing data", async function () {
+      // The `local` chain has no pons factory, so this must degrade cleanly.
+      const launch = await readLaunch(ethers.provider, chain, await cleanToken.getAddress());
+      expect(launch.isPonsLaunch).to.equal(false);
+      expect(launch.skipReason).to.be.a("string");
+    });
+
+    it("does not flag impersonation when no pons factory is configured", async function () {
+      // Without a factory to ask, claiming "not a pons launch" would be a
+      // conclusion drawn from a check that never ran.
+      const report = await audit(await cleanToken.getAddress());
+      expect(report.findings.map((f) => f.id)).to.not.include("not-a-pons-launch");
     });
   });
 

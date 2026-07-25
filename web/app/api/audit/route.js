@@ -1,5 +1,5 @@
 import { NextResponse } from "next/server";
-import { auditToken, getChain, scoreReport } from "@pons/engine";
+import { auditToken, getChain, scoreReport } from "@/lib/engine";
 import { getSession } from "@/lib/session";
 
 /**

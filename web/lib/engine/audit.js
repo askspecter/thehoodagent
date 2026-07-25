@@ -9,6 +9,7 @@ const {
   codeSize,
 } = require("./bytecode");
 const { simulateRoundTrip } = require("./simulate");
+const { readLaunch } = require("./pons");
 
 const ERC20_ABI = [
   "function name() view returns (string)",
@@ -314,9 +315,33 @@ async function auditToken(address, chain, options = {}) {
     report.incomplete.push("Holder analysis skipped — could not read chain height or supply.");
   }
 
-  // ---- 9. Can you actually get your money back out? ----
+  // ---- 9. What does pons itself say about this launch? ----
+  const launch = await readLaunch(provider, chain, target);
+  report.launch = launch;
+
+  if (launch.isPonsLaunch) {
+    report.findings.push(...launch.findings);
+  } else if (!launch.skipReason && chain.pons?.factory) {
+    // Neither pons factory deployed this token. That is not automatically bad —
+    // it may simply be an ordinary token — but names and images can be copied,
+    // so a token presented as a pons launch that no factory knows about is
+    // impersonating one.
+    report.findings.push(
+      finding(
+        "medium",
+        "not-a-pons-launch",
+        "Not deployed by either pons factory",
+        "Neither the active nor the legacy pons factory has a record of this token. If you found it presented as a pons launch, the listing is misleading — names, symbols, and images can be copied freely, so always match the contract address."
+      )
+    );
+  }
+
+  // ---- 10. Can you actually get your money back out? ----
   const sim = await simulateRoundTrip(provider, chain, target, {
     probeEth: options.probeEth || "0.01",
+    // A pons launch tells us its exact pool and fee tier, so no probing needed.
+    knownFee: launch.isPonsLaunch ? launch.poolFee : undefined,
+    knownPool: launch.isPonsLaunch ? launch.pool : undefined,
   });
   report.simulation = sim;
 

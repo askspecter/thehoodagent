@@ -242,6 +242,126 @@ export default function Home() {
   );
 }
 
+/** Live launch state read straight off the pons contracts. */
+function LaunchPanel({ launch, report }) {
+  const grad = launch.graduation;
+  const fees = launch.fees;
+  const socials = launch.socials || {};
+  const socialLinks = Object.entries(socials).filter(([, v]) => v && v.trim());
+
+  const fmt = (n, digits = 6) =>
+    n == null || !Number.isFinite(n)
+      ? "—"
+      : n < 0.000001
+        ? n.toExponential(2)
+        : n.toLocaleString(undefined, { maximumFractionDigits: digits });
+
+  return (
+    <>
+      <div className="section-title">
+        pons launch · {launch.generation} factory
+        {launch.generation === "legacy" && " (90/10 split)"}
+      </div>
+
+      <div className="stats">
+        <div className="stat">
+          <div className="stat-label">Price</div>
+          <div className="stat-value">{fmt(launch.priceInWeth, 10)}</div>
+          <div className="stat-sub">WETH per token</div>
+        </div>
+        <div className="stat">
+          <div className="stat-label">Market cap</div>
+          <div className="stat-value">{fmt(launch.marketCapWeth, 3)}</div>
+          <div className="stat-sub">WETH · = FDV (fixed supply)</div>
+        </div>
+        <div className="stat">
+          <div className="stat-label">Pool fee</div>
+          <div className="stat-value">{(launch.poolFee / 10_000).toFixed(2)}%</div>
+          <div className="stat-sub">Uniswap V3 tier</div>
+        </div>
+        {fees && (
+          <div className="stat">
+            <div className="stat-label">Fee split</div>
+            <div className="stat-value">
+              {fees.creatorSharePercent}/{fees.protocolSharePercent ?? "—"}
+            </div>
+            <div className="stat-sub">creator / protocol</div>
+          </div>
+        )}
+      </div>
+
+      {grad && (
+        <div className="meter">
+          <div className="meter-head">
+            <span>
+              {grad.graduated ? "✔ Graduated" : "Graduation progress"} — threshold is a
+              liquidity marker, not a safety signal
+            </span>
+            <span className="meter-num">
+              {Number(grad.pairedEth).toFixed(3)} / {Number(grad.thresholdEth).toFixed(2)} ETH
+            </span>
+          </div>
+          <div
+            className="meter-track"
+            role="meter"
+            aria-valuenow={Math.round(grad.progress * 100)}
+            aria-valuemin={0}
+            aria-valuemax={100}
+            aria-label="Graduation progress"
+          >
+            <div
+              className="meter-fill"
+              style={{ width: `${Math.min(100, Math.max(0, grad.progress * 100))}%` }}
+            />
+          </div>
+        </div>
+      )}
+
+      {launch.protectionActive && (
+        <p className="form-note">
+          Launch protection is still active until block {launch.restrictionsEndBlock}: max 5%
+          held and 5.5% bought per wallet. Selling is never restricted.
+        </p>
+      )}
+
+      {fees?.redirected && (
+        <p className="form-note">
+          Creator fees are redirected to {fees.creatorPayout} rather than the deployer — normal
+          after a community takeover, but worth knowing who is paid.
+        </p>
+      )}
+
+      {launch.deployer && (
+        <p className="form-note">
+          Deployer{" "}
+          {report.explorer ? (
+            <a
+              href={`${report.explorer.split("/address/")[0]}/address/${launch.deployer}`}
+              target="_blank"
+              rel="noopener noreferrer"
+              style={{ color: "var(--bar)" }}
+            >
+              {launch.deployer}
+            </a>
+          ) : (
+            launch.deployer
+          )}
+        </p>
+      )}
+
+      {socialLinks.length > 0 && (
+        <div className="socials">
+          {socialLinks.map(([name, value]) => (
+            <span className="social-chip" key={name} title={value}>
+              {name}: {value}
+            </span>
+          ))}
+        </div>
+      )}
+    </>
+  );
+}
+
 function Report({ report, findings }) {
   const score = report.score || {};
   const verdict = VERDICT[score.verdict] || VERDICT.CAUTION;
@@ -298,6 +418,8 @@ function Report({ report, findings }) {
           )}
         </div>
       </div>
+
+      {report.launch?.isPonsLaunch && <LaunchPanel launch={report.launch} report={report} />}
 
       <div className="section-title">Findings ({findings.length})</div>
       {findings.length === 0 ? (

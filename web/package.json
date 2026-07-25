@@ -2,7 +2,7 @@
   "name": "pons-sentinel-web",
   "version": "1.0.0",
   "private": true,
-  "description": "Pons Sentinel — token audit + launch intel dashboard for Robinhood Chain, with X sign-in.",
+  "description": "pons sentinel — token audit dashboard for Robinhood Chain, with X sign-in.",
   "scripts": {
     "dev": "next dev -p 3000",
     "build": "next build",
@@ -10,7 +10,6 @@
     "lint": "next lint"
   },
   "dependencies": {
-    "@pons/engine": "file:../agent",
     "ethers": "^6.13.4",
     "next": "^15.1.6",
     "react": "^19.0.0",
