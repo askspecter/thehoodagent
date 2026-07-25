@@ -8,7 +8,7 @@ import { fmtEth, fmtQty, fmtUsd, usdOr } from "./format";
  * Profile: who you are here, and what you are holding.
  *
  * The holdings come from the same terminal endpoint the `portfolio` command
- * uses, so the two can never disagree about what you own — one source, two
+ * uses, so the two can never disagree about what you own, one source, two
  * presentations.
  */
 export default function Profile({ network, user, onSignIn, onNavigate }) {
@@ -90,7 +90,7 @@ export default function Profile({ network, user, onSignIn, onNavigate }) {
       setCopied(true);
       setTimeout(() => setCopied(false), 1600);
     } catch {
-      /* clipboard blocked — the address is on screen to copy by hand */
+      /* clipboard blocked, the address is on screen to copy by hand */
     }
   }, [wallet]);
 
@@ -190,7 +190,7 @@ export default function Profile({ network, user, onSignIn, onNavigate }) {
                   <div className="stat-sub">
                     {wallet.balance
                       ? fmtEth(Number(wallet.balance.formatted), { symbol: "ETH" })
-                      : "—"}
+                      : ","}
                   </div>
                 </>
               ) : walletError?.code === "wallet_not_configured" ? (
@@ -213,7 +213,7 @@ export default function Profile({ network, user, onSignIn, onNavigate }) {
                 {account ? shortAddress(account) : "not connected"}
               </div>
               <div className="stat-sub">
-                {account ? "signs its own transactions" : "optional — the X wallet works too"}
+                {account ? "signs its own transactions" : "optional, the X wallet works too"}
               </div>
             </div>
           </div>
@@ -310,7 +310,7 @@ export default function Profile({ network, user, onSignIn, onNavigate }) {
                   <span className="alert-icon">·</span>
                   <span>
                     <strong>No launches held.</strong> Open the terminal and try{" "}
-                    <code>buy $5 pons</code>, or browse the feed first.
+                    <code>buy $5 sonic</code>, or browse the feed first.
                   </span>
                 </div>
               ) : (

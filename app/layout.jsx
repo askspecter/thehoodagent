@@ -1,7 +1,6 @@
 import "./globals.css";
 import { SessionProvider } from "./session";
 import SiteChrome from "./SiteChrome";
-import SiteFooter from "./SiteFooter";
 
 export const metadata = {
   metadataBase: new URL("https://www.usecable.trade"),
@@ -10,7 +9,7 @@ export const metadata = {
     template: "%s · CABLE",
   },
   description:
-    "A trading terminal, launchpad and token auditor for Robinhood Chain. Type a command like “buy me $5 pons”, or paste an address to check it before you buy.",
+    "A trading terminal, launchpad and token auditor for Robinhood Chain. Type a command like “buy me $5 sonic”, or paste an address to check it before you buy.",
   openGraph: {
     title: "CABLE",
     description: "Launch, trade and audit fixed-supply tokens on Robinhood Chain — by typing a command.",
@@ -26,8 +25,9 @@ export default function RootLayout({ children }) {
       <body>
         <SessionProvider>
           <SiteChrome />
-          <main className="shell page-main">{children}</main>
-          <SiteFooter />
+          <main className="wrap page-main">{children}</main>
+          {/* The footer is rendered by the landing page only — it is the main
+              page's furniture, not something to repeat on every route. */}
         </SessionProvider>
       </body>
     </html>

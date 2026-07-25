@@ -19,7 +19,7 @@ import { fmtEth, fmtQty, fmtUsd, fmtUsdPrice, fullNumber, shortAddr, usdOr } fro
  * One input. "buy me $5 nvda" is a complete instruction: the ticker resolves
  * against the live launch feed, the dollars convert at the current ETH rate, the
  * pool quotes the fill, and only then is a signature asked for. Nothing is ever
- * sent from a typed line alone — every trade lands as a plan you confirm, with
+ * sent from a typed line alone, every trade lands as a plan you confirm, with
  * the amounts, the price and the worst case spelled out.
  *
  * Two ways to sign, chosen by what the visitor actually has:
@@ -27,7 +27,7 @@ import { fmtEth, fmtQty, fmtUsd, fmtUsdPrice, fullNumber, shortAddr, usdOr } fro
  *  • A browser wallet, if one is injected. Fully non-custodial, same path the
  *    Trade tab uses.
  *  • The wallet derived from their X account, signed server-side, for the phone
- *    browsers that have no extension — which is most of them, and the reason
+ *    browsers that have no extension, which is most of them, and the reason
  *    this terminal is usable at all on a phone.
  */
 
@@ -135,7 +135,7 @@ export default function Terminal({ network, user, onNavigate, onSignIn }) {
           return;
         }
 
-        // The card first, then any notes about it — a footnote printed above
+        // The card first, then any notes about it, a footnote printed above
         // the thing it annotates reads as a non sequitur.
         if (json.kind === "plan" && json.plan) {
           push({ type: "plan", plan: json.plan, ethUsd: json.ethUsd });
@@ -189,7 +189,7 @@ export default function Terminal({ network, user, onNavigate, onSignIn }) {
         // The recipient is encoded LOCALLY against the wallet that is actually
         // signing. The server built this plan before it necessarily knew which
         // wallet that would be, and sending its calldata unchanged could deliver
-        // the output to a different address of the same visitor's — or to the
+        // the output to a different address of the same visitor's, or to the
         // zero address, which burns it.
         setExec(entryId, { status: "working", note: "Simulating before spending anything…" });
 
@@ -301,7 +301,7 @@ export default function Terminal({ network, user, onNavigate, onSignIn }) {
         return;
       }
 
-      // Tab completes the verb, and only the verb — completing a ticker would
+      // Tab completes the verb, and only the verb, completing a ticker would
       // mean guessing which token someone meant to buy.
       if (event.key === "Tab") {
         const word = input.trim();
@@ -336,7 +336,7 @@ export default function Terminal({ network, user, onNavigate, onSignIn }) {
           <span className="cursor" />
         </h1>
         <p>
-          <code>buy me $5 nvda</code> — plain language. It quotes the fill first, and never sends
+          <code>buy me $5 sonic</code> in plain language. It quotes the fill first, and never sends
           from a typed line alone.
         </p>
       </section>
@@ -364,7 +364,7 @@ export default function Terminal({ network, user, onNavigate, onSignIn }) {
         <div
           className="term-screen"
           onClick={(e) => {
-            // Clicking dead space focuses the prompt, the way a terminal does —
+            // Clicking dead space focuses the prompt, the way a terminal does,
             // but never steal a click on a button or a link inside the output.
             if (e.target === e.currentTarget) inputRef.current?.focus();
           }}
@@ -398,7 +398,7 @@ export default function Terminal({ network, user, onNavigate, onSignIn }) {
             value={input}
             onChange={(e) => setInput(e.target.value)}
             onKeyDown={onKeyDown}
-            placeholder="buy me $5 pons"
+            placeholder="buy me $5 sonic"
             spellCheck={false}
             autoComplete="off"
             autoCapitalize="off"
@@ -409,7 +409,7 @@ export default function Terminal({ network, user, onNavigate, onSignIn }) {
       </div>
 
       <p className="form-note term-foot">
-        Simulated before signing, so a bad trade costs nothing — but a quote is not a guarantee.
+        Simulated before signing, so a bad trade costs nothing, but a quote is not a guarantee.
         Run <code>audit</code> before you buy.
       </p>
     </>
@@ -681,7 +681,7 @@ function PriceCard({ data, ethUsd, onCommand }) {
           <div className="term-v">
             {data.graduationProgress != null
               ? `${Math.min(100, data.graduationProgress * 100).toFixed(1)}%`
-              : "—"}
+              : ","}
           </div>
           {data.pairedEth != null && (
             <div className="term-k">
@@ -725,7 +725,7 @@ function BalanceCard({ data }) {
         </div>
         <div>
           <div className="term-k">Value</div>
-          <div className="term-v">{data.usd != null ? fmtUsd(data.usd) : "—"}</div>
+          <div className="term-v">{data.usd != null ? fmtUsd(data.usd) : ","}</div>
         </div>
       </div>
       <div className="term-card-meta">{data.address}</div>
@@ -765,7 +765,7 @@ function PortfolioCard({ data, ethUsd, onCommand }) {
             key={h.token}
             className="term-row"
             onClick={() => onCommand(`price ${h.token}`)}
-            title={`${h.token} — click to price it`}
+            title={`${h.token}, click to price it`}
           >
             <span className="term-row-sym">${(h.symbol || "???").replace(/^\$/, "")}</span>
             <span className="term-row-qty">{fmtQty(h.qty)}</span>
@@ -796,7 +796,7 @@ function ListCard({ data, ethUsd, onCommand }) {
             key={l.token}
             className="term-row"
             onClick={() => onCommand(`price ${l.token}`)}
-            title={`${l.token} — click to price it`}
+            title={`${l.token}, click to price it`}
           >
             <span className="term-row-rank">{String(i + 1).padStart(2, "0")}</span>
             <span className="term-row-sym">${(l.symbol || "???").replace(/^\$/, "")}</span>

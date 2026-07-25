@@ -27,7 +27,7 @@ import {
 /**
  * Friendly labels and input hints for the field names launchpads actually use.
  *
- * `hidden` fields are still encoded — the ABI demands every argument — they just
+ * `hidden` fields are still encoded, the ABI demands every argument, they just
  * are not shown. Discord and Farcaster are hidden as empty strings, and the fee
  * wallet is hidden because it is filled automatically with the launcher's own X
  * wallet rather than being sendable anywhere.
@@ -50,9 +50,9 @@ const FIELD_HINTS = [
    * supply a `bytes32` is not a question they can answer, and every one of these
    * has exactly one right value:
    *
-   *   launchConfigId / dexId — 0 selects the factory's default configuration and
+   *   launchConfigId / dexId, 0 selects the factory's default configuration and
    *     its default DEX, which is the only pons launch route this app supports.
-   *   salt — the CREATE2 salt. It must be UNIQUE, not zero: reusing a salt
+   *   salt, the CREATE2 salt. It must be UNIQUE, not zero: reusing a salt
    *     derives an address that already has code and the deployment reverts. So
    *     it is generated fresh per form rather than defaulted.
    */
@@ -75,7 +75,7 @@ function hintFor(field) {
  * Default value for a field type, so unfilled arguments still encode.
  *
  * The bytes cases are not decoration. `bytes32` used to fall through to `""`,
- * which ethers rejects as an invalid BytesLike — so an empty `salt` did not
+ * which ethers rejects as an invalid BytesLike, so an empty `salt` did not
  * quietly encode as zero, it threw and the launch could not be submitted at all.
  */
 function emptyFor(type) {
@@ -96,7 +96,7 @@ function emptyFor(type) {
  *
  * Unique per launch on purpose: a repeated salt derives an address that already
  * holds code, and the factory reverts. `crypto.getRandomValues` is the browser's
- * CSPRNG — `Math.random` would eventually collide.
+ * CSPRNG, `Math.random` would eventually collide.
  */
 function randomSalt() {
   const bytes = new Uint8Array(32);
@@ -138,7 +138,7 @@ export default function LaunchForm({ network, onLaunched, prefill = null }) {
   const [uploading, setUploading] = useState(false);
   const [uploadError, setUploadError] = useState(null);
 
-  /** The wallet derived from the signed-in X account — where fees go. */
+  /** The wallet derived from the signed-in X account, where fees go. */
   const [xWallet, setXWallet] = useState(null);
   const [xHandle, setXHandle] = useState(null);
 
@@ -339,13 +339,13 @@ export default function LaunchForm({ network, onLaunched, prefill = null }) {
         <p>
           One transaction from your wallet mints a fixed 1,000,000,000 supply and opens a locked
           WETH pool at a 1% fee. Because it goes through the pons factory, the token appears on
-          ponsfamily.com immediately — and in the Launches tab here.
+          ponsfamily.com immediately, and in the Launches tab here.
         </p>
       </section>
 
       <div className="console">
         {/* The raw ABI signature used to be the headline here. It is a fact about
-            the call, not a thing anyone reads while naming a token — it moved to
+            the call, not a thing anyone reads while naming a token, it moved to
             the technical details at the foot of the form. */}
         <div className="console-bar">
           <span className="live-dot" />
@@ -471,7 +471,7 @@ export default function LaunchForm({ network, onLaunched, prefill = null }) {
               {xWallet && (
                 <p className="form-note">
                   Creator fees go to your X wallet <code>{shortAddress(xWallet)}</code> (@
-                  {xHandle}) — set automatically, not sendable elsewhere.
+                  {xHandle}), set automatically, not sendable elsewhere.
                 </p>
               )}
 
@@ -537,7 +537,7 @@ export default function LaunchForm({ network, onLaunched, prefill = null }) {
               )}
 
               {/* Folded away, not dropped. Which function this form will call is
-                  a real safety property — it just does not belong above the
+                  a real safety property, it just does not belong above the
                   fields someone is filling in. */}
               <details className="tech">
                 <summary>Technical details</summary>
@@ -560,7 +560,7 @@ export default function LaunchForm({ network, onLaunched, prefill = null }) {
                 <p className="form-note">
                   The form is built from the factory’s own verified ABI, so nothing about the
                   call is hardcoded. <code>launchConfigId</code>, <code>dexId</code> and{" "}
-                  <code>salt</code> are filled automatically — the first two select the
+                  <code>salt</code> are filled automatically, the first two select the
                   factory’s defaults, and the salt is a fresh random value so the deployment
                   address cannot collide with an existing one.
                 </p>

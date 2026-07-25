@@ -7,7 +7,7 @@ import { fmtUsdPrice, fullNumber, shortAddr, usdOr } from "./format";
  * The launchpad feed.
  *
  * Every entry is a token the pons factory deployed, read from its own
- * `TokenLaunched` event — so anything launched through this site appears here and
+ * `TokenLaunched` event, so anything launched through this site appears here and
  * on ponsfamily.com alike, because it is the same factory and the same pool.
  *
  * Figures are shown in dollars with the WETH value underneath. The pool holds
@@ -64,7 +64,7 @@ function LaunchCard({ launch, rank, explorer, ethUsd, onAudit, onTrade }) {
       <div className="tok-figures">
         <div>
           <div className="tok-fig-label">Market cap</div>
-          {/* USD only. The exact WETH figure stays in the tooltip — the small ETH
+          {/* USD only. The exact WETH figure stays in the tooltip, the small ETH
               line under it read as clutter and confused people. */}
           <div className="tok-fig" title={fullNumber(launch.marketCapWeth, "WETH")}>
             {usdOr(launch.marketCapWeth, ethUsd)}
@@ -184,7 +184,7 @@ export default function LaunchFeed({ network, onAudit, onTrade, nonce }) {
         </h1>
         <p>
           Tokens deployed through this site use the pons factory, so they appear on
-          ponsfamily.com the moment they exist — same factory, same locked WETH pool, same
+          ponsfamily.com the moment they exist, same factory, same locked WETH pool, same
           chain. Fixed 1,000,000,000 supply, 1% pool fee, liquidity locked in one transaction.
         </p>
       </section>
@@ -247,7 +247,7 @@ export default function LaunchFeed({ network, onAudit, onTrade, nonce }) {
           <span className="alert-icon">·</span>
           <span>
             <strong>Nothing launched here yet.</strong> Use the <b>Create</b> tab to deploy the
-            first one — it will appear here and on ponsfamily.com at the same time. Or switch to{" "}
+            first one, it will appear here and on ponsfamily.com at the same time. Or switch to{" "}
             <button className="link-btn" onClick={() => setScope("all")}>
               all pons launches
             </button>{" "}
@@ -326,7 +326,7 @@ export default function LaunchFeed({ network, onAudit, onTrade, nonce }) {
       )}
 
       <p className="form-note" style={{ marginTop: 18 }}>
-        Ranked by the order they were deployed, newest first — not by quality. Graduation only
+        Ranked by the order they were deployed, newest first, not by quality. Graduation only
         means the paired-WETH threshold was reached; it is not an audit or an endorsement. Run the
         audit before you buy anything here.
       </p>

@@ -3,6 +3,7 @@
 import Link from "next/link";
 import { useSession } from "./session";
 import { XLogo } from "./constants";
+import SiteFooter from "./SiteFooter";
 
 /**
  * The landing page.
@@ -17,21 +18,21 @@ const PILLARS = [
     tag: "Terminal",
     href: "/terminal",
     title: "Trade by typing",
-    body: "“buy me $5 pons” is a complete instruction. CABLE resolves the ticker against the live feed, converts the dollars at the current ETH rate, quotes the fill through the real pool, and hands you a plan to confirm. Nothing is sent from a typed line alone.",
+    body: "“buy me $5 sonic” is a complete instruction. CABLE resolves the ticker against the live feed, converts the dollars at the current ETH rate, quotes the fill through the real pool, and hands you a plan to confirm. Nothing is sent from a typed line alone.",
     cta: "Open the terminal",
   },
   {
     tag: "Launchpad",
     href: "/create",
     title: "Create a token",
-    body: "One transaction mints a fixed 1,000,000,000 supply and opens a locked WETH pool at a 1% fee. It goes through the pons factory, so it appears on ponsfamily.com the moment it exists — same factory, same pool, same chain.",
+    body: "One transaction mints a fixed 1,000,000,000 supply and opens a locked WETH pool at a 1% fee. Liquidity is locked in the same transaction, and the token trades the moment it exists.",
     cta: "Create a token",
   },
   {
     tag: "Auditor",
     href: "/audit",
     title: "Check before you buy",
-    body: "Paste an address and CABLE simulates a full buy-then-sell round trip against the real pool. If the sell reverts, the token is a honeypot — and you found out for free instead of with your money. Read-only, no wallet needed.",
+    body: "Paste an address and CABLE simulates a full buy-then-sell round trip against the real pool. If the sell reverts, the token is a honeypot, and you found out for free instead of with your money. Read-only, no wallet needed.",
     cta: "Run an audit",
   },
 ];
@@ -40,7 +41,7 @@ const STEPS = [
   {
     n: "01",
     title: "Sign in with X, or connect a wallet",
-    body: "Signing in with X mints a wallet from your account — no seed phrase. Or connect a browser wallet. Either one signs your trades; CABLE never holds your keys or your funds.",
+    body: "Signing in with X mints a wallet from your account, no seed phrase. Or connect a browser wallet. Either one signs your trades; CABLE never holds your keys or your funds.",
   },
   {
     n: "02",
@@ -49,17 +50,17 @@ const STEPS = [
   },
   {
     n: "03",
-    title: "Confirm — with the worst case in front of you",
+    title: "Confirm, with the worst case in front of you",
     body: "Trades are quoted and simulated first, so a bad one costs nothing. You confirm a plan that spells out what you pay, what you receive, and the floor at your slippage.",
   },
 ];
 
 const COMMANDS = [
-  ["buy me $5 pons", "five dollars of $PONS, converted for you"],
-  ["sell all pons", "reads your balance, quotes the exit"],
-  ["price pons", "live pool price and market cap"],
+  ["buy me $5 sonic", "five dollars of the token, converted for you"],
+  ["sell all sonic", "reads your balance, quotes the exit"],
+  ["price sonic", "live pool price and market cap"],
   ["audit 0x…", "full honeypot and owner-power scan"],
-  ["create HOOD Hood Rat", "opens the form, prefilled"],
+  ["create SONIC Sonic Coin", "opens the form, prefilled"],
   ["portfolio", "every launch you hold, priced"],
 ];
 
@@ -78,7 +79,7 @@ export default function Landing() {
           <span className="cursor" />
         </h1>
         <p className="lp-lede">
-          CABLE is a trading terminal, launchpad and token auditor for Robinhood Chain — driven by
+          CABLE is a trading terminal, launchpad and token auditor for Robinhood Chain, driven by
           plain language. Type a command, launch a token, or check one before you buy. Your wallet
           signs everything; CABLE never custodies a cent.
         </p>
@@ -135,7 +136,7 @@ export default function Landing() {
       <div className="panel">
         <ul className="limits">
           <li>
-            <strong>Non-custodial.</strong> Every transaction is signed in your own wallet — your
+            <strong>Non-custodial.</strong> Every transaction is signed in your own wallet, your
             browser wallet, or the one your X account mints. No private key reaches the server.
           </li>
           <li>
@@ -162,6 +163,8 @@ export default function Landing() {
           </Link>
         </div>
       </div>
+
+      <SiteFooter />
     </>
   );
 }
