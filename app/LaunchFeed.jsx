@@ -1,7 +1,7 @@
 "use client";
 
 import { useCallback, useEffect, useState } from "react";
-import { fmtEth, fmtUsdPrice, fullNumber, shortAddr, usdOr } from "./format";
+import { fmtUsdPrice, fullNumber, shortAddr, usdOr } from "./format";
 
 /**
  * The launchpad feed.
@@ -64,19 +64,17 @@ function LaunchCard({ launch, rank, explorer, ethUsd, onAudit, onTrade }) {
       <div className="tok-figures">
         <div>
           <div className="tok-fig-label">Market cap</div>
+          {/* USD only. The exact WETH figure stays in the tooltip — the small ETH
+              line under it read as clutter and confused people. */}
           <div className="tok-fig" title={fullNumber(launch.marketCapWeth, "WETH")}>
             {usdOr(launch.marketCapWeth, ethUsd)}
           </div>
-          {ethUsd != null && (
-            <div className="tok-fig-alt">{fmtEth(launch.marketCapWeth)}</div>
-          )}
         </div>
         <div className="tok-fig-right">
           <div className="tok-fig-label">Price</div>
           <div className="tok-fig tok-fig-sm" title={fullNumber(launch.priceInWeth, "WETH")}>
             {usdOr(launch.priceInWeth, ethUsd, fmtUsdPrice)}
           </div>
-          {ethUsd != null && <div className="tok-fig-alt">{fmtEth(launch.priceInWeth)}</div>}
         </div>
       </div>
 
@@ -196,7 +194,7 @@ export default function LaunchFeed({ network, onAudit, onTrade, nonce }) {
           <div className="stat">
             <div className="stat-label">Launches seen</div>
             <div className="stat-value">{stats.scanned}</div>
-            <div className="stat-sub">last {stats.windowBlocks.toLocaleString()} blocks</div>
+            <div className="stat-sub">last {stats.windowBlocks.toLocaleString("en-US")} blocks</div>
           </div>
           <div className="stat">
             <div className="stat-label">Graduated</div>
@@ -213,10 +211,7 @@ export default function LaunchFeed({ network, onAudit, onTrade, nonce }) {
             <div className="stat-value" title={fullNumber(stats.totalMcapWeth, "WETH")}>
               {usdOr(stats.totalMcapWeth, ethUsd)}
             </div>
-            <div className="stat-sub">
-              of the {stats.enriched} shown
-              {ethUsd != null && ` · ${fmtEth(stats.totalMcapWeth)}`}
-            </div>
+            <div className="stat-sub">of the {stats.enriched} shown</div>
           </div>
         </div>
       )}

@@ -39,7 +39,7 @@ export function fmtUsd(n, { prefix = "$" } = {}) {
   if (abs >= 1e9) return `${sign}${prefix}${(abs / 1e9).toFixed(2)}B`;
   if (abs >= 1e6) return `${sign}${prefix}${(abs / 1e6).toFixed(2)}M`;
   if (abs >= 1e4) return `${sign}${prefix}${(abs / 1e3).toFixed(1)}K`;
-  if (abs >= 1) return `${sign}${prefix}${abs.toLocaleString(undefined, {
+  if (abs >= 1) return `${sign}${prefix}${abs.toLocaleString("en-US", {
     minimumFractionDigits: 2,
     maximumFractionDigits: 2,
   })}`;
@@ -56,7 +56,7 @@ export function fmtUsdPrice(n, { prefix = "$" } = {}) {
   if (!isNum(n)) return "—";
   const v = Math.abs(Number(n));
   if (v === 0) return `${prefix}0`;
-  if (v >= 1000) return `${prefix}${v.toLocaleString(undefined, { maximumFractionDigits: 2 })}`;
+  if (v >= 1000) return `${prefix}${v.toLocaleString("en-US", { maximumFractionDigits: 2 })}`;
   if (v >= 1) return `${prefix}${v.toFixed(4).replace(/0+$/, "").replace(/\.$/, "")}`;
   if (v >= 0.001) return `${prefix}${v.toFixed(6).replace(/0+$/, "")}`;
   return fmtSmall(v, prefix);
@@ -82,7 +82,7 @@ function fmtSmall(v, prefix) {
 export function fullNumber(n, suffix = "") {
   if (!isNum(n)) return "unknown";
   const v = Number(n);
-  const text = v < 1e-6 ? v.toExponential(6) : v.toLocaleString(undefined, { maximumFractionDigits: 18 });
+  const text = v < 1e-6 ? v.toExponential(6) : v.toLocaleString("en-US", { maximumFractionDigits: 18 });
   return suffix ? `${text} ${suffix}` : text;
 }
 
@@ -91,8 +91,8 @@ export function fmtEth(n, { symbol = "Ξ" } = {}) {
   if (!isNum(n)) return "—";
   const v = Number(n);
   if (v === 0) return `0 ${symbol}`;
-  if (Math.abs(v) >= 1000) return `${v.toLocaleString(undefined, { maximumFractionDigits: 0 })} ${symbol}`;
-  if (Math.abs(v) >= 0.0001) return `${v.toLocaleString(undefined, { maximumFractionDigits: 6 })} ${symbol}`;
+  if (Math.abs(v) >= 1000) return `${v.toLocaleString("en-US", { maximumFractionDigits: 0 })} ${symbol}`;
+  if (Math.abs(v) >= 0.0001) return `${v.toLocaleString("en-US", { maximumFractionDigits: 6 })} ${symbol}`;
   return `${v.toExponential(2)} ${symbol}`;
 }
 
@@ -100,9 +100,9 @@ export function fmtEth(n, { symbol = "Ξ" } = {}) {
 export function fmtQty(n) {
   if (!isNum(n)) return "—";
   const v = Number(n);
-  if (Math.abs(v) >= 1000) return v.toLocaleString(undefined, { maximumFractionDigits: 0 });
-  if (Math.abs(v) >= 1) return v.toLocaleString(undefined, { maximumFractionDigits: 4 });
-  return v.toLocaleString(undefined, { maximumFractionDigits: 8 });
+  if (Math.abs(v) >= 1000) return v.toLocaleString("en-US", { maximumFractionDigits: 0 });
+  if (Math.abs(v) >= 1) return v.toLocaleString("en-US", { maximumFractionDigits: 4 });
+  return v.toLocaleString("en-US", { maximumFractionDigits: 8 });
 }
 
 /**

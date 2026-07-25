@@ -88,8 +88,8 @@ export async function POST(request) {
 
     const label = (raw, isEth) =>
       isEth
-        ? `${Number(formatEther(raw)).toLocaleString(undefined, { maximumFractionDigits: 6 })} ETH`
-        : `${Number(formatUnits(raw, decimals)).toLocaleString()} ${symbol}`;
+        ? `${Number(formatEther(raw)).toLocaleString("en-US", { maximumFractionDigits: 6 })} ETH`
+        : `${Number(formatUnits(raw, decimals)).toLocaleString("en-US")} ${symbol}`;
 
     return NextResponse.json({
       side,

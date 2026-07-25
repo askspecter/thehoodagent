@@ -150,7 +150,7 @@ export default function WalletPanel({ network, user, onSignIn }) {
                 <div className="stat-label">Total balance</div>
                 <div className="wal-figure">
                   {data.balance
-                    ? `${Number(data.balance.formatted).toLocaleString(undefined, {
+                    ? `${Number(data.balance.formatted).toLocaleString("en-US", {
                         maximumFractionDigits: 6,
                       })} ${data.gasSymbol}`
                     : "—"}

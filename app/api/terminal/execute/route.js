@@ -138,7 +138,7 @@ export async function POST(request) {
           {
             error: `Your X wallet holds ${Number(
               formatUnits(balance, meta.decimals)
-            ).toLocaleString()} ${meta.symbol}, which is less than that.`,
+            ).toLocaleString("en-US")} ${meta.symbol}, which is less than that.`,
           },
           { status: 400 }
         );

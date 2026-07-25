@@ -823,7 +823,7 @@ function Report({ report, findings }) {
           </div>
           {report.token?.totalSupplyFormatted && (
             <div className="token-meta">
-              supply {Number(report.token.totalSupplyFormatted).toLocaleString()}{" "}
+              supply {Number(report.token.totalSupplyFormatted).toLocaleString("en-US")}{" "}
               {report.token.symbol}
             </div>
           )}
