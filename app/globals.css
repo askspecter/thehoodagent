@@ -448,6 +448,13 @@ body::after {
   white-space: nowrap;
 }
 
+/* Hex is case-carrying — a checksummed address uppercased is a different string
+   to the eye, and reads as shouting rather than as an address. */
+.bar-mono {
+  text-transform: none;
+  letter-spacing: 0.02em;
+}
+
 .console-body {
   padding: 18px;
 }
@@ -2223,5 +2230,80 @@ textarea.input {
   }
   .burger line {
     transition: none;
+  }
+}
+
+/* ---------- Folded technical details ---------- */
+
+.tech {
+  margin-top: 22px;
+  border-top: 1px solid var(--hairline);
+  padding-top: 14px;
+}
+
+.tech summary {
+  font-size: 10px;
+  font-weight: 700;
+  letter-spacing: 0.14em;
+  text-transform: uppercase;
+  color: var(--text-muted);
+  cursor: pointer;
+  list-style: none;
+}
+
+.tech summary::-webkit-details-marker {
+  display: none;
+}
+
+/* A rotating caret, so the control reads as expandable without an icon font. */
+.tech summary::before {
+  content: "▸";
+  display: inline-block;
+  margin-right: 8px;
+  color: var(--lime-dim);
+  transition: transform 140ms ease;
+}
+
+.tech[open] summary::before {
+  transform: rotate(90deg);
+}
+
+.tech summary:hover {
+  color: var(--text-secondary);
+}
+
+.tech-list {
+  display: grid;
+  grid-template-columns: minmax(0, 110px) 1fr;
+  gap: 6px 14px;
+  margin: 14px 0 0;
+  font-size: 11px;
+}
+
+.tech-list dt {
+  color: var(--text-muted);
+  letter-spacing: 0.08em;
+  text-transform: uppercase;
+  font-size: 10px;
+}
+
+.tech-list dd {
+  margin: 0;
+  color: var(--text-secondary);
+  word-break: break-all;
+}
+
+.tech-list code {
+  color: var(--lime-dim);
+  font-size: 11px;
+}
+
+@media (max-width: 560px) {
+  .tech-list {
+    grid-template-columns: 1fr;
+    gap: 2px;
+  }
+  .tech-list dd {
+    margin-bottom: 8px;
   }
 }
