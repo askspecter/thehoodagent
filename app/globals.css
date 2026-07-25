@@ -2475,3 +2475,25 @@ code, .field-type {
   padding: 6px 10px !important;
   font-size: 11px !important;
 }
+
+/* Logo — the uploaded CABLE mark. Wordmark + title-bar window icon. */
+.brand-mark {
+  display: inline-flex;
+  align-items: center;
+  gap: 8px;
+}
+.brand-logo {
+  width: 18px;
+  height: 18px;
+  object-fit: contain;
+  box-shadow: var(--sink);
+  padding: 1px;
+  flex-shrink: 0;
+}
+
+/* Put the logo in the title bar as the window icon, left of the caption. */
+.shell::before {
+  background: url("/cable.png") 4px center / 15px 15px no-repeat,
+    linear-gradient(90deg, var(--lime), var(--lime-dim));
+  padding-left: 25px;
+}

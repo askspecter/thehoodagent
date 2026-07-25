@@ -318,7 +318,10 @@ export default function Home() {
       <div className="shell">
         <header className="topbar">
           <button className="brand" onClick={() => setView("terminal")} aria-label="Home">
-            <span className="brand-mark">CABLE</span>
+            <span className="brand-mark">
+              <img className="brand-logo" src="/cable.png" alt="" />
+              CABLE
+            </span>
           </button>
 
           <div className="topbar-right">
