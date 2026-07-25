@@ -1,0 +1,17 @@
+# Secrets — NEVER commit. Contains PRIVATE_KEY for the deployer wallet.
+.env
+.env.local
+*.key
+
+# Dependencies
+node_modules/
+
+# Hardhat build output
+artifacts/
+cache/
+typechain-types/
+
+# Logs / OS
+*.log
+npm-debug.log*
+.DS_Store

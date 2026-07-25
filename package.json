@@ -1,0 +1,23 @@
+{
+  "name": "ponsfamily",
+  "version": "1.0.0",
+  "description": "Pons Family ($PONS) — 1,000,000,000 fixed-supply ERC-20 token + launch website for ponsfamily.com",
+  "license": "MIT",
+  "scripts": {
+    "compile": "hardhat compile",
+    "test": "hardhat test",
+    "deploy:bsc-testnet": "hardhat run scripts/deploy.js --network bscTestnet",
+    "deploy:base-sepolia": "hardhat run scripts/deploy.js --network baseSepolia",
+    "deploy:bsc": "hardhat run scripts/deploy.js --network bsc",
+    "deploy:base": "hardhat run scripts/deploy.js --network base",
+    "deploy:eth": "hardhat run scripts/deploy.js --network mainnet"
+  },
+  "devDependencies": {
+    "@nomicfoundation/hardhat-toolbox": "^5.0.0",
+    "hardhat": "^2.22.10"
+  },
+  "dependencies": {
+    "@openzeppelin/contracts": "^5.1.0",
+    "dotenv": "^16.4.5"
+  }
+}
