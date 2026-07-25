@@ -16,7 +16,7 @@ import {
 /**
  * Buy and sell a launch on this site.
  *
- * Uses the pons swap router, which is a standard Uniswap V3 SwapRouter — so the
+ * Uses the pons swap router, which is a standard Uniswap V3 SwapRouter, so the
  * ABI here is the documented one, not a guess. Every transaction is signed in the
  * visitor's own wallet; nothing is custodial.
  *
@@ -188,7 +188,7 @@ export default function TradePanel({ network, token: initialToken }) {
         setError(
           `Simulation reverted, so nothing was sent and no gas was spent: ${sim.reason}. ` +
             (side === "sell"
-              ? "A reverting sell is the classic honeypot signature — run the audit on this token."
+              ? "A reverting sell is the classic honeypot signature, run the audit on this token."
               : "The pool may be too thin for this size, or slippage too tight.")
         );
         setStatus(null);
@@ -227,7 +227,7 @@ export default function TradePanel({ network, token: initialToken }) {
         </h1>
         <p>
           Swaps run through the pons router against the token's own locked WETH pool. Signed in
-          your wallet, simulated first, and never custodial — this site cannot move your funds.
+          your wallet, simulated first, and never custodial, this site cannot move your funds.
         </p>
       </section>
 
@@ -377,7 +377,7 @@ export default function TradePanel({ network, token: initialToken }) {
               <div className="stat">
                 <div className="stat-label">Minimum out</div>
                 <div className="stat-value stat-min">
-                  {quote.minOutLabel ? quote.minOutLabel : "—"}
+                  {quote.minOutLabel ? quote.minOutLabel : ","}
                 </div>
                 <div className="stat-sub">at {slippage}% slippage</div>
               </div>

@@ -2983,3 +2983,90 @@ code, .field-type {
     padding: 24px 18px;
   }
 }
+
+/* ============================================================================
+ * CLEAN CHROME + .wrap  (final override — wins over the Win98 skin)
+ *
+ * Splitting the app into routes turned each section into its own raised Win98
+ * "window", so the header stacked three beveled frames deep. `.wrap` is a plain
+ * centred column that skips the window treatment entirely, and the header is
+ * flattened to one clean bar: CABLE at the left, the menu at the right, nothing
+ * nested. The content panels keep the theme; only the chrome is flattened.
+ * ==========================================================================*/
+
+.wrap {
+  max-width: 1040px;
+  margin: 0 auto;
+  padding: 0 16px;
+}
+.wrap,
+.wrap * {
+  border-radius: 0;
+}
+
+/* Header: one flat strip with a single hairline under it. */
+.topbar {
+  box-shadow: none !important;
+  background: none !important;
+  border-bottom: 1px solid var(--hairline) !important;
+  margin: 0 !important;
+  padding: 15px 0 !important;
+}
+
+/* CABLE: just the logo and the wordmark, no boxed tile. */
+.brand-mark {
+  box-shadow: none !important;
+  border: 0 !important;
+  padding: 0 !important;
+  color: var(--text-primary) !important;
+  gap: 9px;
+}
+.brand-logo {
+  box-shadow: none !important;
+  padding: 0 !important;
+  width: 22px !important;
+  height: 22px !important;
+}
+
+/* The menu button: one clean thin box, no bevel. */
+.menu-btn {
+  box-shadow: none !important;
+  border: 1px solid var(--hairline-bright) !important;
+  background: var(--surface-1) !important;
+}
+
+/* Tabs: flat, the active one carries a lime underline (state is not colour alone). */
+.nav {
+  box-shadow: none !important;
+  border-bottom: 1px solid var(--hairline) !important;
+  margin-bottom: 4px;
+  padding: 0 !important;
+}
+.nav-tab {
+  box-shadow: none !important;
+  background: none !important;
+  margin-bottom: 0 !important;
+}
+.nav-tab:hover {
+  background: var(--surface-1) !important;
+}
+.nav-on {
+  box-shadow: none !important;
+  background: var(--surface-1) !important;
+  border-bottom: 2px solid var(--lime) !important;
+}
+
+/* The page column: no window frame, comfortable breathing room. */
+.page-main {
+  padding-top: 18px;
+  padding-bottom: 72px;
+}
+
+@media (max-width: 560px) {
+  .topbar {
+    padding: 12px 0 !important;
+  }
+  .wrap {
+    padding: 0 14px;
+  }
+}

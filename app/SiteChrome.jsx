@@ -11,7 +11,7 @@ import { AUTH_ERRORS, AuthProblem, DESTINATIONS, EXTERNAL_LINKS, TAPE, XLogo } f
  * The header, command tape and navigation, shared by every page.
  *
  * Each section is a real route now, so navigation is `<Link>`s and the active
- * tab is derived from the path — not from a `view` state variable. The tab strip
+ * tab is derived from the path, not from a `view` state variable. The tab strip
  * shows only on the app routes; the landing and legal pages keep the wordmark
  * and the menu but drop the tabs, so they read as their own thing.
  */
@@ -65,7 +65,7 @@ export default function SiteChrome() {
         </div>
       )}
 
-      <div className="shell chrome-shell">
+      <div className="wrap chrome-shell">
       <header className="topbar">
         <Link className="brand" href="/" aria-label="CABLE home">
           <span className="brand-mark">

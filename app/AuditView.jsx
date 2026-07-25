@@ -18,12 +18,12 @@ const CAPS = [
   {
     title: "Honeypot simulation",
     live: true,
-    body: "Quotes a buy and a sell through the real Uniswap V3 pool. The quote runs the token's own transfer logic, so a sell block surfaces as a reverting sell — spending nothing and granting no approval.",
+    body: "Quotes a buy and a sell through the real Uniswap V3 pool. The quote runs the token's own transfer logic, so a sell block surfaces as a reverting sell, spending nothing and granting no approval.",
   },
   {
     title: "Sell-tax measurement",
     live: true,
-    body: "Round-trip loss. Around 2–4% is normal pool fees. 20%+ means a transfer tax is eating your trade; 50%+ is a soft honeypot — technically sellable, practically not.",
+    body: "Round-trip loss. Around 2–4% is normal pool fees. 20%+ means a transfer tax is eating your trade; 50%+ is a soft honeypot, technically sellable, practically not.",
   },
   {
     title: "Owner-power scan",
@@ -117,7 +117,7 @@ export default function AuditView() {
         </h1>
         <p>
           Every launch looks the same until you try to leave. This agent simulates a full
-          buy-then-sell round trip against the real pool — if the sell reverts, the token is a
+          buy-then-sell round trip against the real pool, if the sell reverts, the token is a
           honeypot, and you found out for free instead of with your money.
         </p>
         <p className="fine">
@@ -172,7 +172,7 @@ export default function AuditView() {
                 setAddress(EXAMPLE_TOKEN);
               }}
             >
-              Try it with $PONS
+              Load an example
             </button>
             {!user && " · No sign-in needed. Signing in with X raises the rate limit."}
           </div>

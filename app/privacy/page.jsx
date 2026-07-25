@@ -24,7 +24,7 @@ export default function PrivacyPage() {
       <ul>
         <li>
           <strong>Your X identity, if you sign in.</strong> When you sign in with X we read and keep
-          your X user id, handle, display name and avatar URL — nothing more. We use them to show
+          your X user id, handle, display name and avatar URL, nothing more. We use them to show
           who is signed in and to derive your wallet.
         </li>
         <li>
@@ -42,7 +42,7 @@ export default function PrivacyPage() {
       <ul>
         <li>
           <strong>Private keys.</strong> The wallet tied to your X account is <em>derived</em> from
-          a server secret and your X id on demand — it is never written to a database. Browser
+          a server secret and your X id on demand, it is never written to a database. Browser
           wallets sign in your browser and never send their keys to us.
         </li>
         <li>
@@ -72,7 +72,7 @@ export default function PrivacyPage() {
       <h2>Your control</h2>
       <p>
         Sign out at any time to clear your session cookie. Because your wallet is derived rather than
-        stored, there is no account record to delete — signing out simply forgets who you are until
+        stored, there is no account record to delete, signing out simply forgets who you are until
         you sign in again. You can export your wallet’s private key from the Profile page to take it
         fully into your own custody.
       </p>

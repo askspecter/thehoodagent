@@ -22,7 +22,7 @@ export default function TermsPage() {
 
       <h2>Non-custodial by design</h2>
       <p>
-        Every transaction is submitted and signed through your own wallet — a browser wallet you
+        Every transaction is submitted and signed through your own wallet, a browser wallet you
         connect, or the wallet derived from your X account. CABLE cannot move, freeze, or recover
         your funds. On-chain transactions are typically irreversible; once you confirm one, it is
         out of anyone’s hands.
@@ -33,7 +33,7 @@ export default function TermsPage() {
         Nothing on CABLE is investment, financial, legal or tax advice. Prices, market caps,
         audits, scores and any other figures are informational and may be wrong, stale, or
         incomplete. An audit is an automated heuristic scan of what is visible on-chain at the
-        moment of the check — never a guarantee of safety. A token that passes a clean audit can
+        moment of the check, never a guarantee of safety. A token that passes a clean audit can
         still be trapped afterward by an owner who can raise a fee or apply a blacklist, and most
         launchpad tokens go to zero regardless of whether their contract is technically sound.
       </p>
@@ -50,15 +50,15 @@ export default function TermsPage() {
       <p>
         CABLE is an independent interface. It is not affiliated with, endorsed by, or operated by
         Robinhood, pons, or any token creator. Names and marks belong to their owners. Verify domains
-        manually — lookalike launchpad sites are a common way wallets get drained.
+        manually, lookalike launchpad sites are a common way wallets get drained.
       </p>
 
       <h2>As-is, and limitation of liability</h2>
       <p>
         CABLE is provided “as is” and “as available”, without warranties of any kind. To the fullest
-        extent permitted by law, the operators of CABLE are not liable for any loss — including lost
+        extent permitted by law, the operators of CABLE are not liable for any loss, including lost
         funds, failed or reverted transactions, honeypots, smart-contract bugs, RPC or price-feed
-        errors, or downtime — arising from your use of the interface. You use it at your own risk.
+        errors, or downtime, arising from your use of the interface. You use it at your own risk.
       </p>
 
       <h2>Changes</h2>
