@@ -2326,7 +2326,10 @@ textarea.input {
     inset -2px -2px 0 var(--lo2), inset 2px 2px 0 var(--hi2);
   --sink: inset -1px -1px 0 var(--hi), inset 1px 1px 0 var(--lo),
     inset -2px -2px 0 var(--hi2), inset 2px 2px 0 var(--lo2);
-  --ui98: Tahoma, "MS Sans Serif", Geneva, Verdana, sans-serif;
+  /* Narrow, cross-platform fallback. Geneva/Verdana rendered much wider on iOS
+     and pushed text against the edges; Helvetica Neue / Arial are far closer to
+     Tahoma's width, so the mobile layout matches what the screenshots show. */
+  --ui98: Tahoma, "Segoe UI", "Helvetica Neue", Arial, sans-serif;
 }
 
 /* Square corners everywhere — Win98 has no rounded anything. */
@@ -2612,5 +2615,54 @@ code, .field-type {
     flex-direction: column;
     min-height: 0;
     margin: 8px auto;
+  }
+}
+
+/* ============================================================================
+ * Mobile breathing room. On a real iPhone the wider fallback font pushed text
+ * against the bevels; combined with the narrower --ui98 stack above, this gives
+ * every text box room and trims the mono sizes so nothing crowds the edges.
+ * ==========================================================================*/
+@media (max-width: 560px) {
+  /* Pull content in from the window frame — the main "mepet" fix. */
+  .shell {
+    padding: 4px 12px 12px !important;
+  }
+  .hero,
+  .hero-tight {
+    padding-left: 4px;
+    padding-right: 4px;
+  }
+  .hero h1 {
+    font-size: clamp(21px, 7.4vw, 30px);
+  }
+  .eyebrow {
+    padding: 7px 12px;
+    line-height: 1.4;
+  }
+  .console-bar {
+    padding: 9px 13px;
+  }
+  .term-screen {
+    padding: 13px 14px !important;
+  }
+  .term-chip {
+    padding: 8px 12px !important;
+  }
+  .nav-tab {
+    padding: 12px 14px !important;
+  }
+  .disclaimer,
+  footer.disclaimer {
+    padding: 8px 13px !important;
+    line-height: 1.55;
+  }
+  /* A touch smaller so the wide iOS monospace does not crowd the edges. */
+  .term-screen,
+  .term-line,
+  .term-input,
+  .term-prompt,
+  .term-chip {
+    font-size: 12px !important;
   }
 }
