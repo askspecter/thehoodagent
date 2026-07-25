@@ -137,8 +137,18 @@ not the code. `vercel.json` fixes it in the repository so the setting cannot dri
 again. (The dashboard equivalent is Settings → Build and Deployment → Framework
 Preset → **Next.js**.)
 
-Then set the environment variables (Settings → Environment Variables). Without
-`SESSION_SECRET` the app shows a setup error instead of signing anyone in:
+### Environment variables are optional to get started
+
+**Audits work with no environment variables at all.** The auditor is read-only, so
+gating it behind sign-in would only fail the person who most needs it — someone
+about to buy a token they have not checked. Anonymous visitors get 5 audits per
+minute (throttled by IP); signing in with X raises that to 15.
+
+If `X_CLIENT_ID` / `X_REDIRECT_URI` are absent, the sign-in button simply does not
+render — no "not configured" notice, because that reads as a broken site to a
+visitor. Set them when you want sign-in.
+
+Variables (Settings → Environment Variables):
 
 | Variable | Value |
 |---|---|

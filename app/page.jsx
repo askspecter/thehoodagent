@@ -23,6 +23,49 @@ const VERDICT = {
   AVOID: { icon: "✖", cls: "sev-critical" },
 };
 
+/**
+ * A graduated token pons publishes specifically so an integration can be checked
+ * against known on-chain state. Perfect one-click demo: a visitor sees a real
+ * report before typing anything.
+ */
+const EXAMPLE_TOKEN = "0x39dBED3a2bd333467115dE45665cC57F813C4571";
+
+/** What the audit actually does, shown up front so the page explains itself. */
+const CHECKS = [
+  {
+    title: "Honeypot simulation",
+    body: "Quotes a buy and a sell through the real pool. The quote runs the token's own transfer logic, so a sell block shows up as a reverting sell — before you spend anything.",
+  },
+  {
+    title: "Sell tax",
+    body: "Measures the round-trip loss. Around 2–4% is normal pool fees. 20% or more means a transfer tax is eating your trade; 50% is a soft honeypot.",
+  },
+  {
+    title: "Owner powers",
+    body: "Reads the contract's own bytecode for mint, blacklist, pause, setFee and friends. Works on unverified contracts, which is most of a launchpad.",
+  },
+  {
+    title: "Ownership",
+    body: "Renounced ownership counts in a token's favour. A live owner holding privileged functions is the worst case — they can change the rules while you hold.",
+  },
+  {
+    title: "Upgradeable proxy",
+    body: "Checks the implementation slots. Upgradeable logic can gain a sell block after you buy, so a clean scan today guarantees nothing tomorrow.",
+  },
+  {
+    title: "Holder concentration",
+    body: "Replays transfers to rank holders. A pool legitimately holds a large share — the report says so instead of assuming the worst.",
+  },
+  {
+    title: "pons launch state",
+    body: "Reads the deploying factory for the exact pool, fee tier, graduation progress and fee split. Graduation is a liquidity marker, not a safety badge.",
+  },
+  {
+    title: "Impersonation",
+    body: "If neither pons factory deployed it, that is reported. Names, symbols and images can be copied freely — only the address is identity.",
+  },
+];
+
 const AUTH_ERRORS = {
   state_mismatch: "Sign-in expired or was tampered with. Please try again.",
   missing_code: "X did not return an authorization code.",
@@ -135,9 +178,8 @@ export default function Home() {
           <a className="btn btn-x" href="/api/auth/x/login">
             <XLogo /> Sign in with X
           </a>
-        ) : (
-          <span className="brand-sub">X sign-in not configured</span>
-        )}
+        ) : null /* X credentials absent — audits still work, so show nothing
+                    rather than a "not configured" notice that reads as broken. */}
       </header>
 
       <section className="hero">
@@ -193,7 +235,7 @@ export default function Home() {
           <button
             className="btn btn-primary"
             onClick={runAudit}
-            disabled={busy || !user || !address.trim()}
+            disabled={busy || !address.trim()}
           >
             {busy ? (
               <>
@@ -206,9 +248,17 @@ export default function Home() {
           </button>
         </div>
         <div className="form-note">
-          {user
-            ? "Simulates a 0.01 WETH round trip through the token's Uniswap V3 pool."
-            : "Sign in with X to run an audit."}
+          Simulates a 0.01 WETH round trip through the token's Uniswap V3 pool.{" "}
+          <button
+            className="link-btn"
+            onClick={() => {
+              setNetwork("robinhood");
+              setAddress(EXAMPLE_TOKEN);
+            }}
+          >
+            Try it with $PONS
+          </button>
+          {!user && " · No sign-in needed. Signing in with X raises the rate limit."}
         </div>
       </div>
 
@@ -220,6 +270,38 @@ export default function Home() {
       )}
 
       {report && <Report report={report} findings={findings} />}
+
+      {!report && !busy && (
+        <>
+          <div className="section-title">What gets checked</div>
+          <div className="checks">
+            {CHECKS.map((check) => (
+              <div className="check" key={check.title}>
+                <div className="check-title">{check.title}</div>
+                <div className="check-body">{check.body}</div>
+              </div>
+            ))}
+          </div>
+
+          <div className="section-title">What it cannot tell you</div>
+          <div className="panel">
+            <ul className="limits">
+              <li>
+                A trap keyed on your address, the block number, or an allowlist can
+                quote clean and still fail for you in a real transaction.
+              </li>
+              <li>
+                A blacklist can be applied <em>after</em> you pass a clean audit. An
+                owner who can raise the fee can do it the minute you buy.
+              </li>
+              <li>
+                Contract safety is not investment quality. Most launchpad tokens go
+                to zero with completely ordinary contracts.
+              </li>
+            </ul>
+          </div>
+        </>
+      )}
 
       <footer className="disclaimer">
         <p>

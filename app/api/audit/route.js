@@ -10,13 +10,20 @@ import { getSession } from "@/lib/session";
  * means one warm connection serves every visitor.
  */
 
-// Simple per-user throttle. NOTE: in-memory, so it resets on restart and does
-// not span multiple server instances. Swap for Redis before real traffic.
+// Throttle. NOTE: in-memory, so it resets on restart and does not span multiple
+// server instances. Swap for Redis before real traffic.
 const hits = new Map();
 const WINDOW_MS = 60_000;
-const MAX_PER_WINDOW = 12;
 
-function rateLimited(key) {
+/**
+ * Anyone may audit — the check is read-only and costs nothing to run, so gating
+ * it behind sign-in would only make the tool useless to the person who most
+ * needs it: someone about to buy a token they have not checked. Signing in with
+ * X simply raises the ceiling.
+ */
+const LIMITS = { anonymous: 5, signedIn: 15 };
+
+function rateLimited(key, max) {
   const now = Date.now();
   const record = hits.get(key);
   if (!record || now > record.reset) {
@@ -24,7 +31,14 @@ function rateLimited(key) {
     return false;
   }
   record.count += 1;
-  return record.count > MAX_PER_WINDOW;
+  return record.count > max;
+}
+
+/** Best-effort client identity for anonymous throttling. */
+function clientKey(request) {
+  const forwarded = request.headers.get("x-forwarded-for");
+  const ip = forwarded ? forwarded.split(",")[0].trim() : null;
+  return `ip:${ip || request.headers.get("x-real-ip") || "unknown"}`;
 }
 
 /** BigInt values cannot go through JSON.stringify, so widen them to strings. */
@@ -38,20 +52,21 @@ export async function POST(request) {
   let session = null;
   try {
     session = await getSession();
-  } catch (error) {
-    return NextResponse.json({ error: error.message }, { status: 500 });
+  } catch {
+    // A missing or bad SESSION_SECRET must not take the auditor down with it —
+    // sign-in is an extra here, not a prerequisite. Continue as anonymous.
+    session = null;
   }
 
-  if (!session) {
-    return NextResponse.json(
-      { error: "Sign in with X to run an audit." },
-      { status: 401 }
-    );
-  }
+  const max = session ? LIMITS.signedIn : LIMITS.anonymous;
+  const key = session ? `user:${session.id}` : clientKey(request);
 
-  if (rateLimited(session.id)) {
+  if (rateLimited(key, max)) {
     return NextResponse.json(
-      { error: `Slow down — max ${MAX_PER_WINDOW} audits per minute.` },
+      {
+        error: `Slow down — max ${max} audits per minute.`,
+        hint: session ? undefined : "Signing in with X raises the limit.",
+      },
       { status: 429 }
     );
   }
