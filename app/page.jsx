@@ -1,8 +1,6 @@
 "use client";
 
 import Link from "next/link";
-import { useSession } from "./session";
-import { XLogo } from "./constants";
 import SiteFooter from "./SiteFooter";
 
 /**
@@ -65,8 +63,6 @@ const COMMANDS = [
 ];
 
 export default function Landing() {
-  const { user, signIn } = useSession();
-
   return (
     <>
       <section className="lp-hero">
@@ -83,19 +79,6 @@ export default function Landing() {
           plain language. Type a command, launch a token, or check one before you buy. Your wallet
           signs everything; CABLE never custodies a cent.
         </p>
-        <div className="lp-cta">
-          <Link className="btn btn-primary" href="/terminal">
-            Open the terminal
-          </Link>
-          <Link className="btn" href="/audit">
-            Audit a token
-          </Link>
-          {!user && (
-            <button className="btn btn-x" onClick={signIn}>
-              <XLogo /> Sign in with X
-            </button>
-          )}
-        </div>
       </section>
 
       <div className="lp-pillars">
@@ -150,18 +133,6 @@ export default function Landing() {
             clean check. Most launchpad tokens go to zero regardless.
           </li>
         </ul>
-      </div>
-
-      <div className="lp-foot-cta">
-        <h2>Ready?</h2>
-        <div className="lp-cta">
-          <Link className="btn btn-primary" href="/terminal">
-            Open the terminal
-          </Link>
-          <Link className="btn" href="/launches">
-            Browse launches
-          </Link>
-        </div>
       </div>
 
       <SiteFooter />
