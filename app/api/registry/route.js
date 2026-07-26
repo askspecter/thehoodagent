@@ -75,6 +75,9 @@ export async function GET(request) {
           // so its card never shows "$???" on a transient metadata miss.
           symbol: l.symbol || entry.symbol || null,
           name: l.name || entry.name || null,
+          // The official pin uses the bundled brand mark; everything else keeps
+          // whatever logo the token set on-chain.
+          logo: entry.logo || l.logo || null,
           xUsername: entry.xUsername || mine || null,
           official: entry.official || false,
           socials: entry.socials || null,
