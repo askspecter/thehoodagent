@@ -58,18 +58,19 @@ function LaunchCard({ launch, rank, explorer, ethUsd, onAudit, onTrade }) {
   }, [launch.token]);
 
   return (
-    <div className="tok">
+    <div className={`tok${launch.official ? " tok-official-card" : ""}`}>
       <div className="tok-head">
         <TokenLogo launch={launch} />
         <div className="tok-id">
           <div className="tok-sym">
             ${(launch.symbol || "???").replace(/^\$/, "")}
+            {launch.official && <span className="tok-badge tok-official">OFFICIAL</span>}
             {grad === true && <span className="tok-badge tok-grad">GRAD</span>}
             {grad === false && <span className="tok-badge tok-curve">TRADING</span>}
           </div>
           <div className="tok-name">{launch.name || "Unnamed launch"}</div>
         </div>
-        <div className="tok-rank">#{rank}</div>
+        <div className="tok-rank">{launch.official ? "★" : `#${rank}`}</div>
       </div>
 
       <div className="tok-figures">
@@ -107,6 +108,36 @@ function LaunchCard({ launch, rank, explorer, ethUsd, onAudit, onTrade }) {
       )}
 
       {launch.description && <div className="tok-desc">{launch.description}</div>}
+
+      {launch.socials && (
+        <div className="tok-socials">
+          {launch.socials.x && (
+            <a className="tok-social" href={launch.socials.x} target="_blank" rel="noopener noreferrer">
+              X ↗
+            </a>
+          )}
+          {launch.socials.telegram && (
+            <a
+              className="tok-social"
+              href={launch.socials.telegram}
+              target="_blank"
+              rel="noopener noreferrer"
+            >
+              Telegram ↗
+            </a>
+          )}
+          {launch.socials.website && (
+            <a
+              className="tok-social"
+              href={launch.socials.website}
+              target="_blank"
+              rel="noopener noreferrer"
+            >
+              Website ↗
+            </a>
+          )}
+        </div>
+      )}
 
       <div className="tok-foot">
         <span className="tok-meta">
@@ -186,8 +217,13 @@ export default function LaunchFeed({ network, onAudit, onTrade, nonce }) {
   const ourCount = ours?.tokens?.length ?? ourLaunches.length;
   const launches = scope === "ours" ? ourLaunches : allLaunches;
   const ethUsd = (scope === "ours" ? ours?.ethUsd : data?.ethUsd) ?? data?.ethUsd ?? null;
-  const graduated = launches.filter((l) => l.graduated === true);
-  const trading = launches.filter((l) => l.graduated !== true);
+
+  // The official token ($CABLE) is pinned to the very top of "launched here" and
+  // pulled out of the graduated/trading split so it appears once, not twice.
+  const official = launches.find((l) => l.official) || null;
+  const rest = launches.filter((l) => !l.official);
+  const graduated = rest.filter((l) => l.graduated === true);
+  const trading = rest.filter((l) => l.graduated !== true);
 
   return (
     <>
@@ -303,6 +339,22 @@ export default function LaunchFeed({ network, onAudit, onTrade, nonce }) {
             <code>LAUNCH_SCAN_BLOCKS</code>, or the window may simply predate recent activity.
           </span>
         </div>
+      )}
+
+      {official && (
+        <>
+          <div className="section-title">Official</div>
+          <div className="toks">
+            <LaunchCard
+              launch={official}
+              rank={0}
+              explorer={data?.explorer}
+              ethUsd={ethUsd}
+              onAudit={onAudit}
+              onTrade={onTrade}
+            />
+          </div>
+        </>
       )}
 
       {graduated.length > 0 && (

@@ -1067,6 +1067,44 @@ textarea.input {
 .tok-grad { color: var(--status-good); }
 .tok-curve { color: var(--text-muted); }
 
+/* The official pin: a filled lime badge (loud on purpose — it is the one token
+   here the site vouches for) and a lime-bordered card. */
+.tok-badge.tok-official {
+  color: var(--lime-ink);
+  background: var(--lime);
+  border-color: var(--lime);
+}
+
+.tok-official-card,
+.tok-official-card:hover {
+  border-color: var(--lime);
+  box-shadow: 0 0 0 1px var(--lime-glow);
+}
+
+/* Social links, shown on the official card since a launch description cannot
+   carry links itself. */
+.tok-socials {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 8px;
+}
+
+.tok-social {
+  font-size: 10px;
+  font-weight: 700;
+  letter-spacing: 0.08em;
+  text-transform: uppercase;
+  color: var(--lime-dim);
+  text-decoration: none;
+  border: 1px solid var(--hairline-bright);
+  padding: 5px 10px;
+}
+
+.tok-social:hover {
+  color: var(--lime);
+  border-color: var(--lime-dim);
+}
+
 .tok-rank {
   font-size: 11px;
   color: var(--text-muted);

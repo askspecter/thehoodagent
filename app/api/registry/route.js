@@ -60,17 +60,25 @@ export async function GET(request) {
         getEthUsd(),
       ]);
 
-      // Credit the X handle that launched each token, matched by address.
-      const handleByToken = new Map(
-        (result.entries || [])
-          .filter((e) => e.xUsername)
-          .map((e) => [e.token.toLowerCase(), e.xUsername])
+      // The stored entry per token carries the X handle that launched it, plus
+      // (for the official pin) its official flag and socials.
+      const entryByToken = new Map(
+        (result.entries || []).map((e) => [e.token.toLowerCase(), e])
       );
       launches = enriched.map((l) => {
-        const recorded = handleByToken.get(l.token.toLowerCase());
+        const entry = entryByToken.get(l.token.toLowerCase()) || {};
         // Fall back to the viewer's handle when they are the launch's deployer.
         const mine = me && l.deployer && getAddress(l.deployer) === me.wallet ? me.handle : null;
-        return { ...l, xUsername: recorded || mine || null };
+        return {
+          ...l,
+          // Live on-chain name/symbol win; the official entry carries fallbacks
+          // so its card never shows "$???" on a transient metadata miss.
+          symbol: l.symbol || entry.symbol || null,
+          name: l.name || entry.name || null,
+          xUsername: entry.xUsername || mine || null,
+          official: entry.official || false,
+          socials: entry.socials || null,
+        };
       });
       ethUsd = rate?.usd ?? null;
     }
