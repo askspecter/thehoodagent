@@ -21,9 +21,13 @@ function TokenLogo({ launch }) {
   const [failed, setFailed] = useState(false);
   const letter = (launch.symbol || launch.name || "?").replace(/^\$/, "").charAt(0).toUpperCase();
 
-  // Only render creator-supplied images over https, and never as a link.
+  // Only render images over https, or a same-origin root-relative path (the
+  // bundled official logo like "/cable.png"). A single leading slash is
+  // same-origin; "//host" is protocol-relative to another host and is refused.
   const src =
-    !failed && typeof launch.logo === "string" && /^https:\/\//i.test(launch.logo)
+    !failed &&
+    typeof launch.logo === "string" &&
+    (/^https:\/\//i.test(launch.logo) || /^\/(?!\/)/.test(launch.logo))
       ? launch.logo
       : null;
 
