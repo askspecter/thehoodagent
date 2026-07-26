@@ -16,7 +16,7 @@ const PILLARS = [
     tag: "Terminal",
     href: "/terminal",
     title: "Trade by typing",
-    body: "“buy me $5 sonic” is a complete instruction. CABLE resolves the ticker against the live feed, converts the dollars at the current ETH rate, quotes the fill through the real pool, and hands you a plan to confirm. Nothing is sent from a typed line alone.",
+    body: "“buy me $5 nvda” is a complete instruction. CABLE resolves the ticker against the live feed, converts the dollars at the current ETH rate, quotes the fill through the real pool, and hands you a plan to confirm. Nothing is sent from a typed line alone.",
     cta: "Open the terminal",
   },
   {
@@ -54,11 +54,11 @@ const STEPS = [
 ];
 
 const COMMANDS = [
-  ["buy me $5 sonic", "five dollars of the token, converted for you"],
-  ["sell all sonic", "reads your balance, quotes the exit"],
-  ["price sonic", "live pool price and market cap"],
+  ["buy me $5 nvda", "five dollars of the token, converted for you"],
+  ["sell all tsla", "reads your balance, quotes the exit"],
+  ["price btc", "live pool price and market cap"],
   ["audit 0x…", "full honeypot and owner-power scan"],
-  ["create SONIC Sonic Coin", "opens the form, prefilled"],
+  ["create MOON Moon Coin", "opens the form, prefilled"],
   ["portfolio", "every launch you hold, priced"],
 ];
 
