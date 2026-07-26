@@ -204,10 +204,16 @@ export default function Terminal({ network, user, onNavigate, onSignIn }) {
         setExec(entryId, { status: "working", note: "Simulating before spending anything…" });
 
         const isBuy = plan.side === "buy";
+        // What the trade is paired against: WETH for a launch, USDG for a stock.
+        // `plan.weth` carries that address either way. Only a native (WETH) buy
+        // pays ETH as msg.value; a stablecoin buy spends the ERC-20 it already
+        // approved above, so it sends no value.
+        const quoteAddress = plan.quoteAddress || plan.weth;
+        const quoteIsNative = plan.quoteIsNative !== false;
         const data = routerIface.encodeFunctionData("exactInputSingle", [
           {
-            tokenIn: isBuy ? plan.weth : plan.token,
-            tokenOut: isBuy ? plan.token : plan.weth,
+            tokenIn: isBuy ? quoteAddress : plan.token,
+            tokenOut: isBuy ? plan.token : quoteAddress,
             fee: plan.poolFee,
             recipient: from,
             deadline: Math.floor(Date.now() / 1000) + 20 * 60,
@@ -221,7 +227,8 @@ export default function Terminal({ network, user, onNavigate, onSignIn }) {
           from,
           to: plan.router,
           data,
-          value: isBuy ? "0x" + BigInt(plan.amountInRaw).toString(16) : undefined,
+          value:
+            isBuy && quoteIsNative ? "0x" + BigInt(plan.amountInRaw).toString(16) : undefined,
         };
 
         const sim = await simulate(tx);
@@ -265,6 +272,9 @@ export default function Terminal({ network, user, onNavigate, onSignIn }) {
             expectedOutRaw: plan.amountOutRaw,
             slippage,
             network,
+            // Settle in the same asset the plan was quoted against: WETH for a
+            // launch, USDG for a stock.
+            quote: plan.quoteId,
           }),
         });
         const json = await res.json();
@@ -626,16 +636,33 @@ function PlanCard({
   const isBuy = plan.side === "buy";
   const status = exec?.status;
 
+  // A stock trades against USDG, a stablecoin, so its quote side is a plain
+  // dollar figure — never an ETH amount. A launch keeps the WETH formatting.
+  const stable = plan.quoteIsStable;
+  const quoteSym = plan.quoteSymbol || "USDG";
+  const quoteDecimals = plan.quoteDecimals || 18;
+  const quoteLabel = (n) => `${fmtUsd(n)} ${quoteSym}`;
+
   const pay = isBuy
-    ? `${fmtEth(plan.ethIn)}${plan.usdIn ? ` · ${fmtUsd(plan.usdIn)}` : ""}`
+    ? stable
+      ? quoteLabel(plan.usdIn)
+      : `${fmtEth(plan.ethIn)}${plan.usdIn ? ` · ${fmtUsd(plan.usdIn)}` : ""}`
     : `${fmtQty(plan.tokensIn)} $${plan.symbol}`;
   const receive = isBuy
     ? `${fmtQty(plan.tokensOut)} $${plan.symbol}`
-    : `${fmtEth(plan.ethOut)}${plan.usdOut ? ` · ${fmtUsd(plan.usdOut)}` : ""}`;
+    : stable
+      ? quoteLabel(plan.usdOut)
+      : `${fmtEth(plan.ethOut)}${plan.usdOut ? ` · ${fmtUsd(plan.usdOut)}` : ""}`;
 
   const worstCase = isBuy
     ? `${fmtQty(Number(plan.minOutRaw) / 10 ** plan.decimals)} $${plan.symbol}`
-    : `${fmtEth(Number(plan.minOutRaw) / 1e18)}`;
+    : stable
+      ? quoteLabel(Number(plan.minOutRaw) / 10 ** quoteDecimals)
+      : `${fmtEth(Number(plan.minOutRaw) / 1e18)}`;
+
+  const fillPrice = stable
+    ? fmtUsdPrice(plan.executionPriceUsd)
+    : usdOr(plan.executionPriceWeth, ethUsd, fmtUsdPrice);
 
   return (
     <div className={`term-card ${isBuy ? "term-card-buy" : "term-card-sell"}`}>
@@ -663,8 +690,15 @@ function PlanCard({
         </div>
         <div>
           <div className="term-k">Fill price</div>
-          <div className="term-v" title={fullNumber(plan.executionPriceWeth, "WETH")}>
-            {usdOr(plan.executionPriceWeth, ethUsd, fmtUsdPrice)}
+          <div
+            className="term-v"
+            title={
+              stable
+                ? fullNumber(plan.executionPriceUsd, quoteSym)
+                : fullNumber(plan.executionPriceWeth, "WETH")
+            }
+          >
+            {fillPrice}
           </div>
         </div>
       </div>
@@ -724,7 +758,8 @@ function PlanCard({
             ) : (
               exec.hash
             )}
-            {plan.side === "sell" && " Proceeds arrive as WETH."}
+            {plan.side === "sell" &&
+              (stable ? ` Proceeds arrive as ${quoteSym}.` : " Proceeds arrive as WETH.")}
           </span>
         </div>
       )}

@@ -119,6 +119,10 @@ export async function POST(request) {
     expectedOutRaw = null,
     slippage = 5,
     network = "robinhood",
+    // Which asset this trade settles in: "weth" (a launch) or "usdg" (a stock).
+    // Only these two, both server config — the client picks between them, it
+    // cannot name an arbitrary address to route through.
+    quote: quoteId = "weth",
   } = body || {};
 
   if (side !== "buy" && side !== "sell") {
@@ -158,10 +162,23 @@ export async function POST(request) {
     return NextResponse.json({ error: error.message }, { status: 400 });
   }
 
-  const { weth, quoter, swapRouter, poolFee } = chain.pons || {};
+  const { weth, usdg, quoter, swapRouter, poolFee } = chain.pons || {};
   if (!weth || !quoter || !swapRouter) {
     return NextResponse.json(
       { error: "This network has no pons router configured." },
+      { status: 400 }
+    );
+  }
+
+  // The asset this trade settles in. A launch is a WETH pair; a stock is a USDG
+  // pair. `quoteIsNative` is what decides whether the buy wraps ETH or spends an
+  // ERC-20 stablecoin, and whether the sell unwraps its proceeds.
+  const wantsStable = quoteId === "usdg";
+  const quoteAddress = wantsStable ? usdg : weth;
+  const quoteIsNative = !wantsStable;
+  if (!quoteAddress) {
+    return NextResponse.json(
+      { error: "This network has no USDG address configured, so stock tokens cannot be traded here." },
       { status: 400 }
     );
   }
@@ -183,8 +200,11 @@ export async function POST(request) {
     const meta = await tokenMeta(provider, token);
     const erc20 = new Contract(token, ERC20_ABI, signer);
 
+    // The stablecoin the trade spends/receives, when it is a USDG pair.
+    const quoteErc20 = new Contract(quoteAddress, ERC20_ABI, signer);
+
     // ---- Can this wallet actually afford it? ----
-    if (isBuy) {
+    if (isBuy && quoteIsNative) {
       const balance = await provider.getBalance(owner);
       if (balance <= amountIn) {
         return NextResponse.json(
@@ -195,6 +215,22 @@ export async function POST(request) {
               6
             )} ETH plus gas.`,
             hint: "Send ETH to the address on the Wallet tab first.",
+          },
+          { status: 400 }
+        );
+      }
+    } else if (isBuy) {
+      // A stock buy spends USDG, not ETH, so it is the USDG balance that has to
+      // cover it. ETH is still needed for gas, but that is a far smaller number.
+      const balance = await quoteErc20.balanceOf(owner);
+      if (balance < amountIn) {
+        const qMeta = await tokenMeta(provider, quoteAddress).catch(() => ({ decimals: 18, symbol: "USDG" }));
+        return NextResponse.json(
+          {
+            error: `Your X wallet holds ${Number(
+              formatUnits(balance, qMeta.decimals)
+            ).toLocaleString("en-US")} ${qMeta.symbol}, which does not cover this buy.`,
+            hint: `Fund the wallet with ${qMeta.symbol} to buy stock tokens.`,
           },
           { status: 400 }
         );
@@ -215,8 +251,8 @@ export async function POST(request) {
 
     // ---- Re-quote. The floor is set from this, never from the request. ----
     const fresh = await quote(provider, quoter, {
-      tokenIn: isBuy ? weth : token,
-      tokenOut: isBuy ? token : weth,
+      tokenIn: isBuy ? quoteAddress : token,
+      tokenOut: isBuy ? token : quoteAddress,
       amountIn,
       fee: poolFee,
     });
@@ -262,7 +298,7 @@ export async function POST(request) {
     let approvalHash = null;
     let wrapHash = null;
 
-    if (isBuy) {
+    if (isBuy && quoteIsNative) {
       // ---- Wrap ETH → WETH, then let the router spend WETH ----
       //
       // The router swaps WETH, not native ETH. Wrapping here (rather than
@@ -277,6 +313,16 @@ export async function POST(request) {
       const allowance = await weth9.allowance(owner, swapRouter);
       if (allowance < amountIn) {
         const approveTx = await weth9.approve(swapRouter, MaxUint256);
+        approvalHash = approveTx.hash;
+        await approveTx.wait();
+      }
+    } else if (isBuy) {
+      // ---- A stock buy spends USDG directly: no wrap, just an approval ----
+      // The wallet already holds the stablecoin (checked above), so the router
+      // only needs permission to pull it.
+      const allowance = await quoteErc20.allowance(owner, swapRouter);
+      if (allowance < amountIn) {
+        const approveTx = await quoteErc20.approve(swapRouter, MaxUint256);
         approvalHash = approveTx.hash;
         await approveTx.wait();
       }
@@ -295,8 +341,8 @@ export async function POST(request) {
     // the older SwapRouter does, and the two have different selectors. Build
     // both, dry-run each, send whichever the chain accepts.
     const base = {
-      tokenIn: isBuy ? weth : token,
-      tokenOut: isBuy ? token : weth,
+      tokenIn: isBuy ? quoteAddress : token,
+      tokenOut: isBuy ? token : quoteAddress,
       fee: poolFee,
       recipient: owner,
       amountIn,
@@ -331,9 +377,11 @@ export async function POST(request) {
       );
     }
 
-    // ---- On a sell, unwrap the WETH we just received back to native ETH ----
+    // ---- On a WETH sell, unwrap the WETH we just received back to native ETH.
+    // A stock sell settles in USDG and there is nothing to unwrap — the proceeds
+    // are simply held as the stablecoin. ----
     let unwrapHash = null;
-    if (!isBuy) {
+    if (!isBuy && quoteIsNative) {
       try {
         const wethBalance = await weth9.balanceOf(owner);
         if (wethBalance > 0n) {

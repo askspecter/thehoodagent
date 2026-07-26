@@ -417,4 +417,73 @@ describe("sizing a trade", function () {
     expect(out.ok).to.equal(false);
     expect(out.error).to.match(/connect a wallet|sign in/i);
   });
+
+  // A stock trades against USDG, a stablecoin, so a dollar buy IS the amount —
+  // no ETH rate, sized in the stablecoin's own decimals. This is the whole point
+  // of the stock-vs-USDG pairing.
+  it("sizes a dollar buy directly in the stablecoin, with no ETH rate", async function () {
+    const usdg = { isStable: true, symbol: "USDG", decimals: 6 };
+    const out = await resolveAmountIn(null, {
+      side: "buy",
+      amount: { unit: "usd", value: 5 },
+      token,
+      decimals: 18,
+      ethUsd: null, // deliberately absent: a stablecoin buy must not need it
+      quote: usdg,
+    });
+    expect(out.ok).to.equal(true);
+    // $5 in USDG at 6 decimals is 5,000,000 raw units.
+    expect(out.amountIn).to.equal(5n * 10n ** 6n);
+    expect(out.basis).to.match(/\$5 in USDG/);
+  });
+
+  it("refuses ETH as the unit on a stablecoin pair", async function () {
+    const out = await resolveAmountIn(null, {
+      side: "buy",
+      amount: { unit: "eth", value: 0.01 },
+      token,
+      decimals: 18,
+      quote: { isStable: true, symbol: "USDG", decimals: 6 },
+    });
+    expect(out.ok).to.equal(false);
+    expect(out.error).to.match(/dollars, not ETH/i);
+  });
+});
+
+/**
+ * The pairing an off-feed trade quotes against: a launch settles in WETH, a
+ * stock in USDG. Getting this wrong is what made stock trades look like
+ * honeypots — they were quoting the WETH pool a stock has no liquidity in.
+ */
+describe("quote asset by token kind", function () {
+  const { quoteAssetFor } = require("../lib/engine/trade");
+  const chain = {
+    pons: {
+      weth: "0x0Bd7D308f8E1639FAb988df18A8011f41EAcAD73",
+      usdg: "0x5fc5360D0400a0Fd4f2af552ADD042D716F1d168",
+    },
+  };
+
+  it("pairs a stock against USDG, non-native and stable", function () {
+    const q = quoteAssetFor(chain, "stock");
+    expect(q.id).to.equal("usdg");
+    expect(q.address).to.equal(chain.pons.usdg);
+    expect(q.isNative).to.equal(false);
+    expect(q.isStable).to.equal(true);
+  });
+
+  it("pairs a launch — and anything not a stock — against WETH", function () {
+    for (const kind of ["launch", "token", null, undefined]) {
+      const q = quoteAssetFor(chain, kind);
+      expect(q.id).to.equal("weth");
+      expect(q.address).to.equal(chain.pons.weth);
+      expect(q.isNative).to.equal(true);
+      expect(q.isStable).to.equal(false);
+    }
+  });
+
+  it("falls back to WETH for a stock when no USDG is configured", function () {
+    const q = quoteAssetFor({ pons: { weth: chain.pons.weth } }, "stock");
+    expect(q.id).to.equal("weth");
+  });
 });

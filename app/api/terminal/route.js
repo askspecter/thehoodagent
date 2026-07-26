@@ -589,7 +589,11 @@ export async function POST(request) {
           }
 
           // A pasted address or other off-feed token: quote it live off the pool.
-          const spot = await spotPrice(provider, chain, found.token, { ethUsd });
+          // A stock is paired against USDG, not WETH, so pass its kind through.
+          const spot = await spotPrice(provider, chain, found.token, {
+            ethUsd,
+            kind: l?.kind || (found.directory ? "token" : null),
+          });
           if (spot.ok) {
             return NextResponse.json(
               serialise({
@@ -602,6 +606,11 @@ export async function POST(request) {
                   kind: l?.kind || (found.directory ? "token" : null),
                   priceInWeth: spot.priceInWeth,
                   marketCapWeth: spot.marketCapWeth,
+                  // A USDG-paired stock has a dollar price and cap directly, with
+                  // no WETH figure to show.
+                  priceUsd: spot.priceUsd,
+                  marketCapUsd: spot.marketCapUsd,
+                  quoteSymbol: spot.quoteSymbol,
                   supplyTokens: spot.supplyTokens,
                   live: true,
                   explorer: chain.explorer,
@@ -635,7 +644,9 @@ export async function POST(request) {
           );
         }
 
-        // buy / sell
+        // buy / sell. A stock trades against USDG, not WETH, so its kind decides
+        // the pair the plan is built and quoted against.
+        const tokenKind = found.launch?.kind || (found.directory ? "token" : "launch");
         const built = await buildTradePlan(provider, chain, {
           side: command.kind,
           token: found.token,
@@ -643,6 +654,7 @@ export async function POST(request) {
           owner: owner.address,
           slippagePercent: Number(slippage) || 5,
           ethUsd,
+          kind: tokenKind,
         });
 
         if (!built.ok) {
@@ -661,7 +673,7 @@ export async function POST(request) {
             ethUsd,
             plan: {
               ...built.plan,
-              tokenKind: found.launch?.kind || (found.directory ? "token" : "launch"),
+              tokenKind,
               owner: owner.address,
               ownerSource: owner.source,
               network,
