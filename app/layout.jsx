@@ -5,14 +5,15 @@ import SiteChrome from "./SiteChrome";
 export const metadata = {
   metadataBase: new URL("https://www.usecable.trade"),
   title: {
-    default: "CABLE — launch, trade and audit on Robinhood Chain",
+    default: "CABLE — Say it. It trades.",
     template: "%s · CABLE",
   },
   description:
-    "A trading terminal, launchpad and token auditor for Robinhood Chain. Type a command like “buy me $5 nvda”, or paste an address to check it before you buy.",
+    "Say it. It trades. A natural-language trading terminal, launchpad and token auditor for Robinhood Chain. Type “buy me $5 nvda” — CABLE quotes, checks and fills it. Non-custodial.",
   openGraph: {
-    title: "CABLE",
-    description: "Launch, trade and audit fixed-supply tokens on Robinhood Chain — by typing a command.",
+    title: "CABLE — Say it. It trades.",
+    description:
+      "Type “buy me $5 nvda” and CABLE quotes, checks and fills it. Launch tokens, audit contracts, trade by typing — non-custodial, on Robinhood Chain.",
     url: "https://www.usecable.trade",
     siteName: "CABLE",
   },
