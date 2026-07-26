@@ -62,27 +62,39 @@ export function fmtUsdPrice(n, { prefix = "$" } = {}) {
   return fmtSmall(v, prefix);
 }
 
-/** `0.0₈2845` — the count of zeros after the point, then four significant digits. */
-function fmtSmall(v, prefix) {
+/**
+ * `0.0₈2845` — the count of zeros after the point, then four significant digits.
+ * Returns the bare number, no currency mark, so it works for $ prefixes and Ξ
+ * suffixes alike. Never an exponent: "2.84e-9" reads as an error, not a price.
+ */
+function smallDigits(v) {
   const exponent = Math.floor(Math.log10(v));
   const zeros = -exponent - 1;
 
   // Three zeros or fewer are still countable by eye, so leave them written out.
   if (zeros <= 3) {
-    return `${prefix}${v.toFixed(Math.min(18, zeros + 4)).replace(/0+$/, "")}`;
+    return v
+      .toFixed(Math.min(18, zeros + 4))
+      .replace(/0+$/, "")
+      .replace(/\.$/, "");
   }
 
   const digits = String(Math.round(v * 10 ** -exponent * 1000))
     .slice(0, 4)
     .replace(/0+$/, "");
-  return `${prefix}0.0${subscript(zeros)}${digits || "1"}`;
+  return `0.0${subscript(zeros)}${digits || "1"}`;
+}
+
+function fmtSmall(v, prefix) {
+  return `${prefix}${smallDigits(v)}`;
 }
 
 /** The unabbreviated value, for a `title` so the exact figure is never lost. */
 export function fullNumber(n, suffix = "") {
   if (!isNum(n)) return "unknown";
   const v = Number(n);
-  const text = v < 1e-6 ? v.toExponential(6) : v.toLocaleString("en-US", { maximumFractionDigits: 18 });
+  // Written out in full, never as an exponent, even in a tooltip.
+  const text = v.toLocaleString("en-US", { maximumFractionDigits: 18 });
   return suffix ? `${text} ${suffix}` : text;
 }
 
@@ -90,10 +102,17 @@ export function fullNumber(n, suffix = "") {
 export function fmtEth(n, { symbol = "Ξ" } = {}) {
   if (!isNum(n)) return "—";
   const v = Number(n);
-  if (v === 0) return `0 ${symbol}`;
-  if (Math.abs(v) >= 1000) return `${v.toLocaleString("en-US", { maximumFractionDigits: 0 })} ${symbol}`;
-  if (Math.abs(v) >= 0.0001) return `${v.toLocaleString("en-US", { maximumFractionDigits: 6 })} ${symbol}`;
-  return `${v.toExponential(2)} ${symbol}`;
+  const suffix = symbol ? ` ${symbol}` : "";
+  if (v === 0) return `0${suffix}`;
+  const abs = Math.abs(v);
+  const sign = v < 0 ? "-" : "";
+  let num;
+  if (abs >= 1000) num = abs.toLocaleString("en-US", { maximumFractionDigits: 0 });
+  else if (abs >= 0.0001) num = abs.toLocaleString("en-US", { maximumFractionDigits: 6 });
+  // Below that, the same leading-zero notation prices use — "0.0₈228 Ξ" — so a
+  // tiny WETH figure never comes out as "2.28e-9 Ξ".
+  else num = smallDigits(abs);
+  return `${sign}${num}${suffix}`;
 }
 
 /** A token quantity. Millions of a memecoin do not need decimal places. */
