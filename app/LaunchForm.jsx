@@ -124,11 +124,32 @@ export default function LaunchForm({ network, onLaunched, prefill = null, user, 
       const form = new FormData();
       form.append("file", file);
       const res = await fetch("/api/logo", { method: "POST", body: form });
-      const json = await res.json();
-      if (!res.ok) setUploadError(json.error || "Upload failed.");
-      else setValues((prev) => ({ ...prev, [key]: json.url }));
+
+      // The endpoint can answer with a non-JSON error — a platform 413/504, an
+      // HTML 500 — in which case res.json() throws and the reached-but-failed
+      // upload used to report the misleading "could not reach". Read the body
+      // once and parse defensively, so the real reason surfaces.
+      const raw = await res.text();
+      let json = null;
+      try {
+        json = raw ? JSON.parse(raw) : null;
+      } catch {
+        /* not JSON — fall back to status below */
+      }
+
+      if (!res.ok || !json?.url) {
+        const reason =
+          json?.error ||
+          (res.status === 413 ? "That image is too large for the server." : null) ||
+          `Upload failed (HTTP ${res.status}).`;
+        setUploadError(`${reason} You can paste an image URL below instead.`);
+        return;
+      }
+      setValues((prev) => ({ ...prev, [key]: json.url }));
     } catch {
-      setUploadError("Could not reach the upload endpoint.");
+      setUploadError(
+        "Could not reach the upload endpoint — check your connection, or paste an image URL below instead."
+      );
     } finally {
       setUploading(false);
     }
@@ -360,6 +381,18 @@ export default function LaunchForm({ network, onLaunched, prefill = null, user, 
                             <span className="form-note">PNG, JPEG, WebP or GIF · under 512 KB</span>
                           </div>
                         </div>
+                        {/* Always available: paste a hosted image URL directly.
+                            Uploading needs storage configured; pasting a URL
+                            never does, so this is the reliable path. */}
+                        <input
+                          className="input logo-url"
+                          type="url"
+                          inputMode="url"
+                          spellCheck={false}
+                          placeholder="or paste an image URL — https://…"
+                          value={values[key] ?? ""}
+                          onChange={(e) => setValue(key, e.target.value.trim())}
+                        />
                         {uploadError && (
                           <span className="form-note sev-medium">▲ {uploadError}</span>
                         )}
