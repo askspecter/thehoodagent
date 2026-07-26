@@ -1,12 +1,15 @@
 import { NextResponse } from "next/server";
-import { deriveAddress, getChain, nativeBalance } from "@/lib/engine";
+import { JsonRpcProvider, formatUnits, getAddress, isAddress } from "ethers";
+import { deriveAddress, getChain, nativeBalance, tokenBalance, tokenMeta } from "@/lib/engine";
 import { getSession } from "@/lib/session";
 
 /**
- * GET /api/wallet?network=robinhood
+ * GET /api/wallet?network=robinhood[&token=0x…]
  *
- * The signed-in user's X-derived wallet: address and balance. The private key is
- * never included here — that requires the explicit export endpoint.
+ * The signed-in user's X-derived wallet: address and native balance. Pass a
+ * `token` to also get that token's balance, which is what the Trade panel shows
+ * next to the amount field. The private key is never included here — that
+ * requires the explicit export endpoint.
  */
 export async function GET(request) {
   const url = new URL(request.url);
@@ -58,6 +61,28 @@ export async function GET(request) {
     balanceError = `Could not read the balance: ${error.message}`;
   }
 
+  // Optional: the balance of one specific token, for the Trade panel.
+  let token = null;
+  const tokenParam = url.searchParams.get("token");
+  if (tokenParam && isAddress(tokenParam)) {
+    try {
+      const provider = new JsonRpcProvider(chain.rpc, chain.chainId);
+      const [raw, meta] = await Promise.all([
+        tokenBalance(provider, tokenParam, address),
+        tokenMeta(provider, tokenParam),
+      ]);
+      token = {
+        token: getAddress(tokenParam),
+        raw: raw.toString(),
+        formatted: formatUnits(raw, meta.decimals),
+        symbol: meta.symbol,
+        decimals: meta.decimals,
+      };
+    } catch {
+      /* a token balance is a nice-to-have; never fail the wallet read over it */
+    }
+  }
+
   return NextResponse.json({
     address,
     handle: session.username,
@@ -69,5 +94,6 @@ export async function GET(request) {
     gasSymbol: chain.gasSymbol,
     balance,
     balanceError,
+    token,
   });
 }
