@@ -5,6 +5,9 @@ const { parseCommand, resolveToken, normaliseSymbol } = require("../lib/engine/t
 const { priceFromSqrt } = require("../lib/engine/pons");
 const { usdToEth } = require("../lib/engine/price");
 const { resolveAmountIn } = require("../lib/engine/trade");
+const { normalizeTokenList, looksLikeTicker } = require("../lib/engine/directory");
+
+const RECIPIENT = "0x39dBED3a2bd333467115dE45665cC57F813C4571";
 
 /**
  * The terminal grammar decides how much money moves, so it is pinned here.
@@ -105,6 +108,103 @@ describe("terminal grammar", function () {
       expect(parseCommand("   ").kind).to.equal("empty");
       expect(parseCommand(undefined).kind).to.equal("empty");
     });
+  });
+});
+
+/**
+ * Transfers move money to an address the user typed, so the grammar has to be
+ * as unforgiving as buying: no amount without a unit that makes sense, and above
+ * all no send without a real 0x recipient.
+ */
+describe("send grammar", function () {
+  it("moves native ETH when the asset is eth", function () {
+    const out = parseCommand(`send 0.05 eth to ${RECIPIENT}`);
+    expect(out).to.include({ kind: "send", asset: "native", to: RECIPIENT });
+    expect(out.amount).to.deep.equal({ unit: "eth", value: 0.05 });
+  });
+
+  it("moves a token by quantity and by percentage", function () {
+    const qty = parseCommand(`send 100 pons to ${RECIPIENT}`);
+    expect(qty).to.include({ kind: "send", asset: "token", query: "pons" });
+    expect(qty.amount).to.deep.equal({ unit: "token", value: 100 });
+
+    const all = parseCommand(`send all pons to ${RECIPIENT}`);
+    expect(all.amount).to.deep.equal({ unit: "percent", value: 100 });
+  });
+
+  it("accepts a trailing address without the word `to`", function () {
+    expect(parseCommand(`send 0.05 eth ${RECIPIENT}`).to).to.equal(RECIPIENT);
+  });
+
+  it("refuses to send without a real address", function () {
+    expect(parseCommand("send 100 pons").kind).to.equal("error");
+    expect(parseCommand("send 0.05 eth to 0xnope").kind).to.equal("error");
+  });
+
+  it("refuses a dollar or ETH amount for a token transfer", function () {
+    expect(parseCommand(`send $5 pons to ${RECIPIENT}`).kind).to.equal("error");
+    expect(parseCommand(`send 0.05 usd to ${RECIPIENT}`).kind).to.equal("error");
+  });
+});
+
+describe("convert grammar", function () {
+  it("reads a target and defaults sensibly", function () {
+    expect(parseCommand("convert $100 to eth")).to.include({ kind: "convert", target: "eth" });
+    // A dollar amount with no target converts to ETH; an ETH amount to USD.
+    expect(parseCommand("convert $100").target).to.equal(null);
+    expect(parseCommand("convert 0.5 eth").amount).to.deep.equal({ unit: "eth", value: 0.5 });
+  });
+
+  it("rejects a percentage, which has nothing to convert against", function () {
+    expect(parseCommand("convert 50%").kind).to.equal("error");
+  });
+});
+
+/**
+ * The directory is how a plain ticker reaches a tokenized stock. Its whole job
+ * is to be exactly as trustworthy as its source, so the filtering that keeps a
+ * wrong-chain or malformed row out of it is pinned here.
+ */
+describe("token directory", function () {
+  const list = {
+    tokens: [
+      { chainId: 4663, address: RECIPIENT, symbol: "NVDA", name: "Nvidia • Robinhood Token", decimals: 18, tags: ["stock"] },
+      { chainId: 1, address: "0x0Bd7D308f8E1639FAb988df18A8011f41EAcAD73", symbol: "AAPL", decimals: 18 },
+      { address: "0x10CC6BD38112cAc182db90B6a71d8Bb5939526bA", symbol: "SPY", decimals: 6 },
+      { address: "not-an-address", symbol: "JUNK" },
+      { chainId: 4663, address: RECIPIENT, symbol: "NVDA-DUP", decimals: 18 },
+    ],
+  };
+
+  it("keeps only this chain, drops malformed rows, and de-duplicates", function () {
+    const out = normalizeTokenList(list, 4663);
+    const symbols = out.map((t) => t.symbol);
+    expect(symbols).to.include("NVDA"); // right chain
+    expect(symbols).to.include("SPY"); // no chainId means "meant for us"
+    expect(symbols).to.not.include("AAPL"); // wrong chain
+    expect(symbols).to.not.include("JUNK"); // bad address
+    expect(out.filter((t) => t.token === require("ethers").getAddress(RECIPIENT))).to.have.length(1);
+  });
+
+  it("tags equities as stock and checksums the address", function () {
+    const nvda = normalizeTokenList(list, 4663).find((t) => t.symbol === "NVDA");
+    expect(nvda.kind).to.equal("stock");
+    expect(nvda.token).to.equal(require("ethers").getAddress(RECIPIENT));
+    expect(nvda.fromDirectory).to.equal(true);
+  });
+
+  it("lets a directory token resolve a ticker the feed never sees", function () {
+    const dir = normalizeTokenList(list, 4663);
+    // The launch feed does not know NVDA; the directory does.
+    expect(resolveToken("nvda", []).ok).to.equal(false);
+    expect(resolveToken("nvda", dir).token).to.equal(require("ethers").getAddress(RECIPIENT));
+  });
+
+  it("knows a ticker from an address or a sentence", function () {
+    expect(looksLikeTicker("nvda")).to.equal(true);
+    expect(looksLikeTicker("$SPY")).to.equal(true);
+    expect(looksLikeTicker(RECIPIENT)).to.equal(false);
+    expect(looksLikeTicker("buy me a coffee")).to.equal(false);
   });
 });
 

@@ -14,11 +14,11 @@ import { fmtEth, fmtQty, fmtUsd, usdOr } from "./format";
 export default function Profile({ network, user, onSignIn, onNavigate }) {
   const [account, setAccount] = useState(null);
   const [wallet, setWallet] = useState(null);
+  const [walletError, setWalletError] = useState(null);
   const [folio, setFolio] = useState(null);
   const [ethUsd, setEthUsd] = useState(null);
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState(null);
-  const [walletError, setWalletError] = useState(null);
 
   // Wallet actions, moved here from the old separate Wallet tab.
   const [copied, setCopied] = useState(false);

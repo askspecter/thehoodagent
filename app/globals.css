@@ -1959,6 +1959,11 @@ textarea.input {
   color: var(--text-primary);
 }
 
+.term-tag-stock {
+  border-color: var(--lime);
+  color: var(--lime);
+}
+
 .term-card-title {
   font-size: 15px;
   font-weight: 700;

@@ -1,6 +1,7 @@
 import { NextResponse } from "next/server";
-import { Contract, JsonRpcProvider, formatUnits, getAddress, isAddress } from "ethers";
+import { Contract, JsonRpcProvider, formatEther, formatUnits, getAddress, isAddress } from "ethers";
 import {
+  buildSendPlan,
   buildTradePlan,
   deriveAddress,
   enrichLaunchesByAddress,
@@ -8,9 +9,13 @@ import {
   getEthUsd,
   listLaunched,
   listLaunches,
+  loadDirectory,
+  looksLikeTicker,
   parseCommand,
   resolveToken,
+  spotPrice,
   tokenMeta,
+  usdToEth,
   HELP,
 } from "@/lib/engine";
 import { getSession } from "@/lib/session";
@@ -51,6 +56,35 @@ async function resolveOwner(account, session) {
     }
   }
   return { address: null, source: null };
+}
+
+/**
+ * Resolve a ticker against the launch feed first, then the stock/known-token
+ * directory. The feed wins on a clash because those are this site's own tokens;
+ * the directory is the reach into Robinhood Chain's tokenized stocks and any
+ * other named token the operator has listed. An address never needs either.
+ */
+async function resolveTicker(query, launches, chain) {
+  const found = resolveToken(query, launches);
+  if (found.ok || found.reason === "ambiguous") return found;
+
+  // A miss on the feed. Only a plain ticker is worth a directory lookup — a
+  // full sentence never is, and an address already resolved above.
+  if (isAddress(query) || !looksLikeTicker(query)) return found;
+
+  let dir;
+  try {
+    dir = await loadDirectory(chain.chainId);
+  } catch {
+    return found;
+  }
+  if (!dir.tokens.length) {
+    return { ...found, directoryEmpty: true, directoryWarning: dir.warning };
+  }
+  const hit = resolveToken(query, dir.tokens);
+  if (hit.ok) return { ...hit, directory: true };
+  if (hit.reason === "ambiguous") return hit;
+  return { ...found, directoryWarning: dir.warning };
 }
 
 export async function POST(request) {
@@ -156,6 +190,161 @@ export async function POST(request) {
 
   try {
     switch (command.kind) {
+      case "fund": {
+        if (!owner.address) {
+          return NextResponse.json({
+            kind: "error",
+            lines: [
+              line("No wallet to fund yet.", "error"),
+              line(
+                session === null && !account
+                  ? "`login` with X to mint one, or `connect` a browser wallet."
+                  : "The server is missing WALLET_DERIVATION_SECRET, so the X wallet cannot be derived. Set it in the deployment env.",
+                "muted"
+              ),
+            ],
+          });
+        }
+        let eth = null;
+        try {
+          eth = Number(formatEther(await provider.getBalance(owner.address)));
+        } catch {
+          /* address still shows even if the balance read fails */
+        }
+        return NextResponse.json(
+          serialise({
+            kind: "fund",
+            ethUsd,
+            data: {
+              address: owner.address,
+              source: owner.source,
+              chain: chain.name,
+              chainId: chain.chainId,
+              gasSymbol: chain.gasSymbol,
+              explorer: chain.explorer,
+              eth,
+              usd: eth != null && ethUsd ? eth * ethUsd : null,
+            },
+          })
+        );
+      }
+
+      case "gas": {
+        const [fee, blockNumber] = await Promise.all([
+          provider.getFeeData(),
+          provider.getBlockNumber().catch(() => null),
+        ]);
+        const gwei = fee.gasPrice != null ? Number(fee.gasPrice) / 1e9 : null;
+        // A plain transfer is 21,000 gas — a figure people can anchor a fee to.
+        const transferEth = fee.gasPrice != null ? Number(formatEther(fee.gasPrice * 21000n)) : null;
+        return NextResponse.json(
+          serialise({
+            kind: "gas",
+            ethUsd,
+            data: {
+              gwei,
+              blockNumber,
+              chain: chain.name,
+              transferEth,
+              transferUsd: transferEth != null && ethUsd ? transferEth * ethUsd : null,
+            },
+          })
+        );
+      }
+
+      case "convert": {
+        const { unit, value } = command.amount;
+        // "convert $100" defaults to ETH; "convert 0.5 eth" defaults to USD.
+        const target = command.target || (unit === "usd" ? "eth" : "usd");
+        let result = null;
+        if (unit === "usd") {
+          const eth = usdToEth(value, ethUsd);
+          result =
+            target === "eth"
+              ? { in: `$${value.toLocaleString("en-US")}`, out: eth != null ? `${eth} ETH` : null }
+              : { in: `$${value.toLocaleString("en-US")}`, out: `$${value.toLocaleString("en-US")}` };
+        } else {
+          // Treat a bare number and "eth" alike as an ETH amount to convert.
+          const usd = ethUsd ? value * ethUsd : null;
+          result = { in: `${value} ETH`, out: usd != null ? `$${usd.toLocaleString("en-US", { maximumFractionDigits: 2 })}` : null };
+        }
+        if (!result.out) {
+          return NextResponse.json({
+            kind: "error",
+            lines: [line("No ETH/USD rate is available right now, so that cannot be converted.", "error")],
+          });
+        }
+        return NextResponse.json(
+          serialise({
+            kind: "convert",
+            ethUsd,
+            data: { ...result, rate: ethUsd },
+          })
+        );
+      }
+
+      case "send": {
+        let token = null;
+        if (command.asset === "token") {
+          const found = await resolveTicker(command.query, launches, chain);
+          if (!found.ok && found.reason === "ambiguous") {
+            return NextResponse.json(
+              serialise({
+                kind: "error",
+                lines: [
+                  line(`“${command.query}” matches ${found.candidates.length} tokens.`, "error"),
+                  ...found.candidates
+                    .slice(0, 6)
+                    .map((c) => line(`  $${c.symbol || "???"}  ${c.token}`)),
+                  line("Use the address to be certain which one you mean.", "muted"),
+                ],
+              })
+            );
+          }
+          if (!found.ok) {
+            return NextResponse.json({
+              kind: "error",
+              lines: [line(`No token called “${command.query}” to send. Paste its address.`, "error")],
+            });
+          }
+          token = found.token;
+        }
+
+        if (!owner.address) {
+          return NextResponse.json({
+            kind: "error",
+            lines: [
+              line("No wallet to send from.", "error"),
+              line("`connect` a browser wallet, or `login` with X.", "muted"),
+            ],
+          });
+        }
+
+        const built = await buildSendPlan(provider, chain, {
+          asset: command.asset,
+          token,
+          amount: command.amount,
+          owner: owner.address,
+          to: command.to,
+        });
+        if (!built.ok) {
+          return NextResponse.json({ kind: "error", lines: [line(built.error, "error")] });
+        }
+        return NextResponse.json(
+          serialise({
+            kind: "sendplan",
+            ethUsd,
+            plan: {
+              ...built.plan,
+              owner: owner.address,
+              ownerSource: owner.source,
+              network,
+              explorer: chain.explorer,
+            },
+          })
+        );
+      }
+
       case "list": {
         const ranked = [...launches].sort(
           (a, b) => (b.marketCapWeth || 0) - (a.marketCapWeth || 0)
@@ -281,7 +470,7 @@ export async function POST(request) {
       case "audit":
       case "buy":
       case "sell": {
-        const found = resolveToken(command.query, launches);
+        const found = await resolveTicker(command.query, launches, chain);
 
         if (!found.ok && found.reason === "ambiguous") {
           return NextResponse.json(
@@ -299,6 +488,21 @@ export async function POST(request) {
         }
 
         if (!found.ok) {
+          // A ticker that looks like a stock but resolved nowhere, on a deploy
+          // with no directory configured, is not "no such token" — it is "this
+          // deploy cannot reach stock tokens yet". Say which.
+          if (found.directoryEmpty && looksLikeTicker(command.query)) {
+            return NextResponse.json({
+              kind: "error",
+              lines: [
+                line(`“${command.query}” is not a launch here, and no stock/token directory is configured.`, "error"),
+                line(
+                  "Set ROBINHOOD_TOKENLIST_URL to the official token list and tickers like NVDA will resolve to their real contracts. A contract address works right now.",
+                  "muted"
+                ),
+              ],
+            });
+          }
           return NextResponse.json({
             kind: "error",
             lines: feedError
@@ -308,9 +512,9 @@ export async function POST(request) {
                   line("A contract address still works — it needs no feed lookup.", "muted"),
                 ]
               : [
-                  line(`No launch called “${command.query}” in the current window.`, "error"),
+                  line(`No launch or listed token called “${command.query}”.`, "error"),
                   line(
-                    "Tickers resolve against launches the feed can see. Paste the contract address to reach any token.",
+                    "Tickers resolve against the launch feed and the token directory. Paste the contract address to reach any token.",
                     "muted"
                   ),
                 ],
@@ -327,33 +531,61 @@ export async function POST(request) {
 
         if (command.kind === "price") {
           const l = found.launch;
-          if (!l) {
-            const meta = await tokenMeta(provider, found.token);
+
+          // A feed launch carries full pool state — use it directly.
+          if (l && Number.isFinite(l.priceInWeth) && !l.fromDirectory) {
+            return NextResponse.json(
+              serialise({
+                kind: "price",
+                ethUsd,
+                data: { ...l, explorer: chain.explorer, matchedBy: found.matchedBy },
+              })
+            );
+          }
+
+          // A stock token or a pasted address: quote it live off the pool.
+          const spot = await spotPrice(provider, chain, found.token, { ethUsd });
+          if (spot.ok) {
             return NextResponse.json(
               serialise({
                 kind: "price",
                 ethUsd,
                 data: {
                   token: found.token,
-                  symbol: meta.symbol,
-                  name: meta.name,
-                  offFeed: true,
+                  symbol: (l && l.symbol) || spot.symbol,
+                  name: (l && l.name) || spot.name,
+                  kind: l?.kind || (found.directory ? "token" : null),
+                  priceInWeth: spot.priceInWeth,
+                  marketCapWeth: spot.marketCapWeth,
+                  supplyTokens: spot.supplyTokens,
+                  live: true,
                   explorer: chain.explorer,
                 },
-                lines: [
-                  line(
-                    "This token is not in the launch feed, so there is no pons pool data for it. `audit` still works.",
-                    "muted"
-                  ),
-                ],
               })
             );
           }
+
+          // No WETH pool to quote against — the tokenized-stock-vs-stablecoin
+          // case, or simply an untradeable token. Show what we know, honestly.
+          const meta = l || (await tokenMeta(provider, found.token));
           return NextResponse.json(
             serialise({
               kind: "price",
               ethUsd,
-              data: { ...l, explorer: chain.explorer, matchedBy: found.matchedBy },
+              data: {
+                token: found.token,
+                symbol: meta.symbol,
+                name: meta.name,
+                kind: l?.kind || null,
+                offFeed: true,
+                explorer: chain.explorer,
+              },
+              lines: [
+                line(
+                  `No WETH pool quotes ${meta.symbol || "this token"} right now, so it cannot be priced or traded through the pons router here. \`audit\` still works.`,
+                  "muted"
+                ),
+              ],
             })
           );
         }
@@ -384,6 +616,7 @@ export async function POST(request) {
             ethUsd,
             plan: {
               ...built.plan,
+              tokenKind: found.launch?.kind || (found.directory ? "token" : "launch"),
               owner: owner.address,
               ownerSource: owner.source,
               network,

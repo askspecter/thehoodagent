@@ -50,11 +50,20 @@ const VERBS = [
   "balance",
   "portfolio",
   "list",
+  "fund",
+  "send",
+  "convert",
+  "gas",
   "help",
   "clear",
   "connect",
   "login",
 ];
+
+/** Native ETH transfer, for the browser-wallet send path. */
+const ERC20_TRANSFER = new Interface([
+  "function transfer(address to, uint256 amount) returns (bool)",
+]);
 
 let nextId = 0;
 const makeId = () => `e${(nextId += 1)}`;
@@ -138,8 +147,8 @@ export default function Terminal({ network, user, onNavigate, onSignIn }) {
 
         // The card first, then any notes about it, a footnote printed above
         // the thing it annotates reads as a non sequitur.
-        if (json.kind === "plan" && json.plan) {
-          push({ type: "plan", plan: json.plan, ethUsd: json.ethUsd });
+        if ((json.kind === "plan" || json.kind === "sendplan") && json.plan) {
+          push({ type: json.kind, plan: json.plan, ethUsd: json.ethUsd });
         } else if (json.data) {
           push({ type: json.kind, data: json.data, ethUsd: json.ethUsd });
         }
@@ -274,6 +283,81 @@ export default function Terminal({ network, user, onNavigate, onSignIn }) {
     [network, slippage, setExec]
   );
 
+  /** Send a transfer plan from the browser wallet. */
+  const sendInBrowser = useCallback(
+    async (entryId, plan) => {
+      let from = account;
+      if (!from) {
+        from = await doConnect();
+        if (!from) return;
+      }
+      setExec(entryId, { status: "working", note: "Simulating the transfer…", error: null });
+      try {
+        const tx =
+          plan.asset === "native"
+            ? { from, to: plan.to, value: "0x" + BigInt(plan.amountRaw).toString(16) }
+            : {
+                from,
+                to: plan.token,
+                data: ERC20_TRANSFER.encodeFunctionData("transfer", [
+                  plan.to,
+                  BigInt(plan.amountRaw),
+                ]),
+              };
+
+        const sim = await simulate(tx);
+        if (!sim.ok) {
+          setExec(entryId, {
+            status: "error",
+            error: `Simulation reverted, so nothing was sent: ${sim.reason}`,
+          });
+          return;
+        }
+        setExec(entryId, { status: "working", note: "Confirm the transfer in your wallet…" });
+        const hash = await sendTransaction(tx);
+        setExec(entryId, { status: "working", note: "Waiting for confirmation…" });
+        const receipt = await waitForReceipt(hash);
+        if (receipt.status === "0x0") {
+          setExec(entryId, { status: "error", error: "Mined but reverted. Nothing moved." });
+        } else {
+          setExec(entryId, { status: "done", hash });
+        }
+      } catch (err) {
+        setExec(entryId, { status: "error", error: humanError(err) });
+      }
+    },
+    [account, doConnect, setExec]
+  );
+
+  /** Send a transfer plan from the X wallet, server-side. */
+  const sendWithXWallet = useCallback(
+    async (entryId, plan) => {
+      setExec(entryId, { status: "working", note: "Signing with your X wallet…", error: null });
+      try {
+        const res = await fetch("/api/terminal/send", {
+          method: "POST",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify({
+            asset: plan.asset,
+            token: plan.token,
+            amountRaw: plan.amountRaw,
+            to: plan.to,
+            network,
+          }),
+        });
+        const json = await res.json();
+        if (!res.ok) {
+          setExec(entryId, { status: "error", error: json.error || "The transfer failed." });
+          return;
+        }
+        setExec(entryId, { status: "done", hash: json.hash });
+      } catch {
+        setExec(entryId, { status: "error", error: "Could not reach the send endpoint." });
+      }
+    },
+    [network, setExec]
+  );
+
   const onKeyDown = useCallback(
     (event) => {
       if (event.key === "Enter" && !busy) {
@@ -380,6 +464,8 @@ export default function Terminal({ network, user, onNavigate, onSignIn }) {
               hasBrowserWallet={hasWallet()}
               onBrowserExecute={() => executeInBrowser(entry.id, entry.plan)}
               onXExecute={() => executeWithXWallet(entry.id, entry.plan)}
+              onBrowserSend={() => sendInBrowser(entry.id, entry.plan)}
+              onXSend={() => sendWithXWallet(entry.id, entry.plan)}
               onCancel={() => setExec(entry.id, { status: "cancelled" })}
               onCommand={run}
               onNavigate={onNavigate}
@@ -444,6 +530,8 @@ function LogEntry({
   hasBrowserWallet,
   onBrowserExecute,
   onXExecute,
+  onBrowserSend,
+  onXSend,
   onCancel,
   onCommand,
   onNavigate,
@@ -471,6 +559,23 @@ function LogEntry({
     );
   }
 
+  if (entry.type === "sendplan") {
+    return (
+      <SendCard
+        plan={entry.plan}
+        ethUsd={entry.ethUsd}
+        exec={exec}
+        account={account}
+        user={user}
+        hasBrowserWallet={hasBrowserWallet}
+        onBrowserSend={onBrowserSend}
+        onXSend={onXSend}
+        onCancel={onCancel}
+        onSignIn={onSignIn}
+      />
+    );
+  }
+
   if (entry.type === "help") {
     return <HelpCard data={entry.data} onCommand={onCommand} />;
   }
@@ -481,6 +586,18 @@ function LogEntry({
 
   if (entry.type === "balance") {
     return <BalanceCard data={entry.data} />;
+  }
+
+  if (entry.type === "fund") {
+    return <FundCard data={entry.data} onCommand={onCommand} />;
+  }
+
+  if (entry.type === "convert") {
+    return <ConvertCard data={entry.data} />;
+  }
+
+  if (entry.type === "gas") {
+    return <GasCard data={entry.data} />;
   }
 
   if (entry.type === "portfolio") {
@@ -524,6 +641,7 @@ function PlanCard({
     <div className={`term-card ${isBuy ? "term-card-buy" : "term-card-sell"}`}>
       <div className="term-card-head">
         <span className="term-tag">{isBuy ? "BUY" : "SELL"}</span>
+        {plan.tokenKind === "stock" && <span className="term-tag term-tag-stock">STOCK</span>}
         <span className="term-card-title">
           ${plan.symbol} {plan.name ? <em>{plan.name}</em> : null}
         </span>
@@ -660,7 +778,9 @@ function PriceCard({ data, ethUsd, onCommand }) {
   return (
     <div className="term-card">
       <div className="term-card-head">
-        <span className="term-tag">{grad === true ? "GRAD" : "TRADING"}</span>
+        <span className="term-tag">
+          {data.kind === "stock" ? "STOCK" : grad === true ? "GRAD" : data.live ? "LIVE" : "TRADING"}
+        </span>
         <span className="term-card-title">
           ${(data.symbol || "???").replace(/^\$/, "")}{" "}
           {data.name ? <em>{data.name}</em> : null}
@@ -713,6 +833,221 @@ function PriceCard({ data, ethUsd, onCommand }) {
         <button className="btn btn-ghost" onClick={() => onCommand(`audit ${data.token}`)}>
           audit
         </button>
+      </div>
+    </div>
+  );
+}
+
+/**
+ * A transfer, confirmed the same way a trade is: the amount, the destination and
+ * the worst case spelled out, and nothing sent from the typed line alone.
+ */
+function SendCard({
+  plan,
+  ethUsd,
+  exec,
+  account,
+  user,
+  hasBrowserWallet,
+  onBrowserSend,
+  onXSend,
+  onCancel,
+  onSignIn,
+}) {
+  const status = exec?.status;
+  const usd =
+    plan.asset === "native" && ethUsd
+      ? fmtUsd(Number(plan.amountRaw) / 1e18 * ethUsd)
+      : null;
+
+  return (
+    <div className="term-card term-card-sell">
+      <div className="term-card-head">
+        <span className="term-tag">SEND</span>
+        <span className="term-card-title">
+          {plan.amountLabel}
+          {usd ? <span className="term-card-sub"> · {usd}</span> : null}
+        </span>
+      </div>
+
+      <div className="term-grid">
+        <div>
+          <div className="term-k">To</div>
+          <div className="term-v term-v-min">{shortAddr(plan.to)}</div>
+        </div>
+        <div>
+          <div className="term-k">From</div>
+          <div className="term-v">
+            {plan.ownerSource === "x" ? "your X wallet" : "browser wallet"}
+          </div>
+        </div>
+      </div>
+
+      <div className="term-card-meta">{plan.to} · transfers cannot be undone</div>
+
+      {!status && (
+        <div className="term-actions">
+          {hasBrowserWallet && (
+            <button className="btn btn-primary" onClick={onBrowserSend}>
+              {account ? "Confirm in wallet" : "Connect & send"}
+            </button>
+          )}
+          {user ? (
+            <button className={`btn ${hasBrowserWallet ? "" : "btn-primary"}`} onClick={onXSend}>
+              Send from X wallet
+            </button>
+          ) : (
+            !hasBrowserWallet && (
+              <button className="btn btn-x" onClick={onSignIn}>
+                Sign in with X to send
+              </button>
+            )
+          )}
+          <button className="btn btn-ghost" onClick={onCancel}>
+            Cancel
+          </button>
+        </div>
+      )}
+
+      {status === "working" && (
+        <div className="alert">
+          <span className="spinner" />
+          <span>{exec.note || "Working…"}</span>
+        </div>
+      )}
+      {status === "cancelled" && (
+        <div className="term-line term-muted">Cancelled. Nothing was sent.</div>
+      )}
+      {status === "error" && (
+        <div className="alert alert-error">
+          <span className="alert-icon">✖</span>
+          <span>{exec.error}</span>
+        </div>
+      )}
+      {status === "done" && (
+        <div className="alert">
+          <span className="alert-icon sev-good">✔</span>
+          <span>
+            <strong>Sent.</strong>{" "}
+            {plan.explorer ? (
+              <a
+                href={`${plan.explorer}/tx/${exec.hash}`}
+                target="_blank"
+                rel="noopener noreferrer"
+                style={{ color: "var(--lime)" }}
+              >
+                View transaction ↗
+              </a>
+            ) : (
+              exec.hash
+            )}
+          </span>
+        </div>
+      )}
+    </div>
+  );
+}
+
+/**
+ * The deposit card. A fresh X wallet is empty, and this is the one screen that
+ * turns "signed in" into "can actually trade": the address to send ETH to, big
+ * and copyable.
+ */
+function FundCard({ data, onCommand }) {
+  const [copied, setCopied] = useState(false);
+  const copy = async () => {
+    try {
+      await navigator.clipboard.writeText(data.address);
+      setCopied(true);
+      setTimeout(() => setCopied(false), 1600);
+    } catch {
+      /* the address is on screen to copy by hand */
+    }
+  };
+  return (
+    <div className="term-card term-card-buy">
+      <div className="term-card-head">
+        <span className="term-tag">FUND</span>
+        <span className="term-card-title">
+          {data.source === "x" ? "Your X wallet" : "Your wallet"}
+        </span>
+        <span className="term-card-sub">
+          {data.eth != null ? fmtEth(data.eth, { symbol: "ETH" }) : "—"}
+          {data.usd != null ? ` · ${fmtUsd(data.usd)}` : ""}
+        </span>
+      </div>
+
+      <button className="wal-addr" onClick={copy} title="Copy address">
+        {data.address} <span className="wal-copy">{copied ? "copied ✓" : "copy"}</span>
+      </button>
+
+      <div className="term-card-meta">
+        Send ETH on {data.chain} (chain id {data.chainId}) to this address to fund trading. Only ETH
+        on this network — anything else is lost.
+      </div>
+
+      <div className="term-actions">
+        <button className="btn" onClick={() => onCommand("balance")}>
+          balance
+        </button>
+        {data.explorer && (
+          <a
+            className="btn btn-ghost"
+            href={`${data.explorer}/address/${data.address}`}
+            target="_blank"
+            rel="noopener noreferrer"
+          >
+            View on explorer ↗
+          </a>
+        )}
+      </div>
+    </div>
+  );
+}
+
+function ConvertCard({ data }) {
+  return (
+    <div className="term-card">
+      <div className="term-card-head">
+        <span className="term-tag">CONVERT</span>
+        <span className="term-card-title">
+          {data.in} <span className="term-card-sub">=</span> {data.out}
+        </span>
+      </div>
+      {data.rate != null && (
+        <div className="term-card-meta">
+          at {fmtUsd(data.rate)}/ETH · a rate, not a quote — a real fill includes fees and impact
+        </div>
+      )}
+    </div>
+  );
+}
+
+function GasCard({ data }) {
+  return (
+    <div className="term-card">
+      <div className="term-card-head">
+        <span className="term-tag">GAS</span>
+        <span className="term-card-title">
+          {data.gwei != null ? `${data.gwei.toLocaleString("en-US", { maximumFractionDigits: 4 })} gwei` : "—"}
+        </span>
+        <span className="term-card-sub">{data.chain}</span>
+      </div>
+      <div className="term-grid">
+        <div>
+          <div className="term-k">A transfer costs</div>
+          <div className="term-v">
+            {data.transferUsd != null
+              ? fmtUsd(data.transferUsd)
+              : data.transferEth != null
+                ? fmtEth(data.transferEth, { symbol: "ETH" })
+                : "—"}
+          </div>
+        </div>
+        <div>
+          <div className="term-k">Block</div>
+          <div className="term-v">{data.blockNumber != null ? `#${data.blockNumber.toLocaleString("en-US")}` : "—"}</div>
+        </div>
       </div>
     </div>
   );
