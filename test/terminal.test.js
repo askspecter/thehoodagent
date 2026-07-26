@@ -5,7 +5,7 @@ const { parseCommand, resolveToken, normaliseSymbol } = require("../lib/engine/t
 const { priceFromSqrt } = require("../lib/engine/pons");
 const { usdToEth } = require("../lib/engine/price");
 const { resolveAmountIn } = require("../lib/engine/trade");
-const { normalizeTokenList, looksLikeTicker } = require("../lib/engine/directory");
+const { normalizeTokenList, normalizeAssets, looksLikeTicker } = require("../lib/engine/directory");
 
 const RECIPIENT = "0x39dBED3a2bd333467115dE45665cC57F813C4571";
 
@@ -205,6 +205,62 @@ describe("token directory", function () {
     expect(looksLikeTicker("$SPY")).to.equal(true);
     expect(looksLikeTicker(RECIPIENT)).to.equal(false);
     expect(looksLikeTicker("buy me a coffee")).to.equal(false);
+  });
+});
+
+/**
+ * The Robinhood stock-token API is the authoritative NVDA → contract map, so how
+ * its response is read is pinned: the right chain's deployment, a real address,
+ * and the issuer's own price carried through so a stock can be priced with no
+ * pool at all.
+ */
+describe("stock-token API parsing", function () {
+  const { getAddress } = require("ethers");
+  const assets = {
+    assets: [
+      {
+        tokenSymbol: "NVDA",
+        name: "Nvidia • Robinhood Token",
+        bid: 100,
+        ask: 102,
+        currency: "USD",
+        isTradingHalt: false,
+        deployments: [
+          { contractAddress: "0x0Bd7D308f8E1639FAb988df18A8011f41EAcAD73", chainId: 1 },
+          { contractAddress: RECIPIENT, chainId: 4663 },
+        ],
+      },
+      {
+        // No deployment on our chain — must be skipped, not guessed.
+        tokenSymbol: "TSLA",
+        deployments: [{ contractAddress: "0x10CC6BD38112cAc182db90B6a71d8Bb5939526bA", chainId: 1 }],
+      },
+      { tokenSymbol: "JUNK", deployments: [{ contractAddress: "0xnope", chainId: 4663 }] },
+    ],
+  };
+
+  it("takes the deployment for this chain and checksums it", function () {
+    const out = normalizeAssets(assets, 4663);
+    const nvda = out.find((t) => t.symbol === "NVDA");
+    expect(nvda.token).to.equal(getAddress(RECIPIENT));
+    expect(nvda.kind).to.equal("stock");
+  });
+
+  it("carries the issuer price through as a USD mid", function () {
+    const nvda = normalizeAssets(assets, 4663).find((t) => t.symbol === "NVDA");
+    expect(nvda.priceUsd).to.equal(101); // (100 + 102) / 2
+    expect(nvda.currency).to.equal("USD");
+  });
+
+  it("skips tokens not deployed here and malformed addresses", function () {
+    const symbols = normalizeAssets(assets, 4663).map((t) => t.symbol);
+    expect(symbols).to.include("NVDA");
+    expect(symbols).to.not.include("TSLA"); // only on chain 1
+    expect(symbols).to.not.include("JUNK"); // bad address
+  });
+
+  it("reads a bare array too, not only a wrapped object", function () {
+    expect(normalizeAssets(assets.assets, 4663)).to.have.length(1);
   });
 });
 

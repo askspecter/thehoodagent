@@ -31,6 +31,10 @@ import { getSession } from "@/lib/session";
  */
 
 const BALANCE_ABI = ["function balanceOf(address) view returns (uint256)"];
+const SUPPLY_ABI = [
+  "function totalSupply() view returns (uint256)",
+  "function decimals() view returns (uint8)",
+];
 
 /** How many launches the resolver may see. Enough to cover the live feed. */
 const RESOLVE_LIMIT = 24;
@@ -116,7 +120,7 @@ export async function POST(request) {
       kind: "help",
       data: { commands: HELP.map(([cmd, what]) => ({ cmd, what })) },
       lines: [
-        line("Tickers resolve against the live launch feed. A 0x address always works.", "muted"),
+        line("Tickers resolve against the launch feed and Robinhood stock tokens. A 0x address always works.", "muted"),
         line("↑ / ↓ walks your history. Tab completes a command.", "muted"),
       ],
     });
@@ -495,9 +499,10 @@ export async function POST(request) {
             return NextResponse.json({
               kind: "error",
               lines: [
-                line(`“${command.query}” is not a launch here, and no stock/token directory is configured.`, "error"),
+                line(`“${command.query}” is not a launch here, and the stock-token directory is empty right now.`, "error"),
                 line(
-                  "Set ROBINHOOD_TOKENLIST_URL to the official token list and tickers like NVDA will resolve to their real contracts. A contract address works right now.",
+                  found.directoryWarning ||
+                    "The Robinhood stock-token API could not be reached from the server. A contract address still works.",
                   "muted"
                 ),
               ],
@@ -543,7 +548,47 @@ export async function POST(request) {
             );
           }
 
-          // A stock token or a pasted address: quote it live off the pool.
+          // A stock token: the issuer's own bid/ask is the authoritative price,
+          // and it needs no pool to exist. Supply is read on-chain for a cap.
+          if (l?.kind === "stock" && l.priceUsd != null) {
+            let supplyTokens = null;
+            try {
+              const erc20 = new Contract(l.token, SUPPLY_ABI, provider);
+              const [supply, dec] = await Promise.all([
+                erc20.totalSupply(),
+                erc20.decimals().catch(() => l.decimals ?? 18),
+              ]);
+              supplyTokens = Number(formatUnits(supply, Number(dec)));
+            } catch {
+              /* a stock with an unreadable supply still has a price */
+            }
+            return NextResponse.json(
+              serialise({
+                kind: "price",
+                ethUsd,
+                data: {
+                  token: found.token,
+                  symbol: l.symbol,
+                  name: l.name,
+                  kind: "stock",
+                  priceUsd: l.priceUsd,
+                  marketCapUsd: supplyTokens != null ? l.priceUsd * supplyTokens : null,
+                  supplyTokens,
+                  currency: l.currency || "USD",
+                  tradingHalted: l.tradingHalted || false,
+                  explorer: chain.explorer,
+                },
+                lines: [
+                  line(
+                    `Price is ${l.symbol}'s issuer bid/ask from Robinhood. Buy/sell here needs a pool on the pons router — try \`buy $5 ${l.symbol}\` to check.`,
+                    "muted"
+                  ),
+                ],
+              })
+            );
+          }
+
+          // A pasted address or other off-feed token: quote it live off the pool.
           const spot = await spotPrice(provider, chain, found.token, { ethUsd });
           if (spot.ok) {
             return NextResponse.json(

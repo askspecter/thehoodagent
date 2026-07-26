@@ -763,12 +763,58 @@ function PriceCard({ data, ethUsd, onCommand }) {
     return (
       <div className="term-card">
         <div className="term-card-head">
-          <span className="term-tag">TOKEN</span>
+          <span className="term-tag">{data.kind === "stock" ? "STOCK" : "TOKEN"}</span>
           <span className="term-card-title">
             ${data.symbol} {data.name ? <em>{data.name}</em> : null}
           </span>
         </div>
         <div className="term-card-meta">{data.token}</div>
+      </div>
+    );
+  }
+
+  // A stock priced from the issuer's bid/ask — USD directly, no pool needed.
+  if (data.kind === "stock" && data.priceUsd != null) {
+    return (
+      <div className="term-card">
+        <div className="term-card-head">
+          <span className="term-tag term-tag-stock">STOCK</span>
+          <span className="term-card-title">
+            ${(data.symbol || "???").replace(/^\$/, "")}{" "}
+            {data.name ? <em>{data.name}</em> : null}
+          </span>
+          {data.tradingHalted && <span className="term-card-sub">trading halted</span>}
+        </div>
+
+        <div className="term-grid">
+          <div>
+            <div className="term-k">Price</div>
+            <div className="term-v">{fmtUsdPrice(data.priceUsd)}</div>
+            <div className="term-k">issuer bid/ask</div>
+          </div>
+          <div>
+            <div className="term-k">Market cap</div>
+            <div className="term-v">{data.marketCapUsd != null ? fmtUsd(data.marketCapUsd) : "—"}</div>
+          </div>
+          <div>
+            <div className="term-k">Supply</div>
+            <div className="term-v">{fmtQty(data.supplyTokens)}</div>
+          </div>
+        </div>
+
+        <div className="term-card-meta">{data.token}</div>
+
+        <div className="term-actions">
+          <button className="btn" onClick={() => onCommand(`buy $5 ${data.token}`)}>
+            buy $5
+          </button>
+          <button className="btn" onClick={() => onCommand(`sell all ${data.token}`)}>
+            sell all
+          </button>
+          <button className="btn btn-ghost" onClick={() => onCommand(`audit ${data.token}`)}>
+            audit
+          </button>
+        </div>
       </div>
     );
   }
