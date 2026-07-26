@@ -1,17 +1,8 @@
 "use client";
 
 import { useCallback, useEffect, useMemo, useState } from "react";
-import { Interface, parseEther } from "ethers";
-import {
-  connect,
-  currentAccount,
-  hasWallet,
-  humanError,
-  sendTransaction,
-  shortAddress,
-  simulate,
-  waitForReceipt,
-} from "./wallet";
+import { shortAddress } from "./wallet";
+import { XLogo } from "./constants";
 
 /**
  * Launch a token on this site.
@@ -72,31 +63,12 @@ function hintFor(field) {
 }
 
 /**
- * Default value for a field type, so unfilled arguments still encode.
- *
- * The bytes cases are not decoration. `bytes32` used to fall through to `""`,
- * which ethers rejects as an invalid BytesLike, so an empty `salt` did not
- * quietly encode as zero, it threw and the launch could not be submitted at all.
- */
-function emptyFor(type) {
-  if (type === "address") return "0x0000000000000000000000000000000000000000";
-  if (/^u?int/.test(type)) return "0";
-  if (type === "bool") return false;
-  if (type.endsWith("[]")) return [];
-
-  const fixedBytes = type.match(/^bytes(\d+)$/);
-  if (fixedBytes) return "0x" + "00".repeat(Number(fixedBytes[1]));
-  if (type === "bytes") return "0x";
-
-  return "";
-}
-
-/**
  * A fresh CREATE2 salt.
  *
  * Unique per launch on purpose: a repeated salt derives an address that already
  * holds code, and the factory reverts. `crypto.getRandomValues` is the browser's
- * CSPRNG, `Math.random` would eventually collide.
+ * CSPRNG, `Math.random` would eventually collide. The salt is filled into the
+ * form and the whole value map is sent to the server, which encodes the call.
  */
 function randomSalt() {
   const bytes = new Uint8Array(32);
@@ -104,31 +76,11 @@ function randomSalt() {
   return "0x" + Array.from(bytes, (b) => b.toString(16).padStart(2, "0")).join("");
 }
 
-/** Rebuild the nested argument structure the ABI expects from a flat value map. */
-function buildArgs(inputs, values, pathPrefix = []) {
-  return inputs.map((input, index) => {
-    const path = [...pathPrefix, input.name || `arg${index}`];
-    if (input.type === "tuple" && Array.isArray(input.components)) {
-      return buildArgs(input.components, values, path);
-    }
-    const key = path.join(".");
-    const raw = values[key];
-    if (raw === undefined || raw === "") return emptyFor(input.type);
-    if (/^u?int/.test(input.type)) {
-      // ETH-denominated fields are typed in ether but encoded in wei.
-      return values[`${key}__isEth`] ? parseEther(String(raw)).toString() : String(raw);
-    }
-    if (input.type === "bool") return Boolean(raw);
-    return raw;
-  });
-}
-
-export default function LaunchForm({ network, onLaunched, prefill = null }) {
+export default function LaunchForm({ network, onLaunched, prefill = null, user, onSignIn }) {
   const [meta, setMeta] = useState(null);
   const [metaError, setMetaError] = useState(null);
   const [loading, setLoading] = useState(true);
 
-  const [account, setAccount] = useState(null);
   const [values, setValues] = useState({});
   const [status, setStatus] = useState(null);
   const [error, setError] = useState(null);
@@ -143,8 +95,6 @@ export default function LaunchForm({ network, onLaunched, prefill = null }) {
   const [xHandle, setXHandle] = useState(null);
 
   useEffect(() => {
-    currentAccount().then(setAccount);
-
     fetch(`/api/factory?network=${encodeURIComponent(network)}`)
       .then((r) => r.json())
       .then((json) => {
@@ -187,20 +137,19 @@ export default function LaunchForm({ network, onLaunched, prefill = null }) {
   const fields = useMemo(() => meta?.chosen?.fields || [], [meta]);
 
   /**
-   * Fill the fee wallet automatically. It prefers the X-derived wallet so creator
-   * fees follow the X account that launched the token, falling back to the
-   * connected browser wallet when nobody is signed in. Either way it is never a
-   * free-form field, so fees cannot be pointed somewhere else.
+   * Fill the fee wallet automatically with the X-derived wallet, so creator fees
+   * always follow the X account that created the token. It is never a free-form
+   * field, and the server forces it again at signing time, so fees cannot be
+   * pointed somewhere else.
    */
   useEffect(() => {
-    const payout = xWallet || account;
     if (!fields.length) return;
     setValues((prev) => {
       const next = { ...prev };
       for (const field of fields) {
         const hint = hintFor(field);
         const key = field.path.join(".");
-        if (hint.fillWithAccount && payout) next[key] = payout;
+        if (hint.fillWithAccount && xWallet) next[key] = xWallet;
         if (hint.isEth) next[`${key}__isEth`] = true;
         // Generated once and kept: re-rolling on every render would change the
         // address between the simulation and the transaction.
@@ -208,7 +157,7 @@ export default function LaunchForm({ network, onLaunched, prefill = null }) {
       }
       return next;
     });
-  }, [account, xWallet, fields]);
+  }, [xWallet, fields]);
 
   /**
    * `create HOOD Hood Rat` in the terminal lands here. Only fields the visitor
@@ -236,94 +185,64 @@ export default function LaunchForm({ network, onLaunched, prefill = null }) {
 
   const setValue = (key, value) => setValues((prev) => ({ ...prev, [key]: value }));
 
-  const doConnect = useCallback(async () => {
-    setError(null);
-    try {
-      setAccount(await connect());
-    } catch (err) {
-      setError(humanError(err));
-    }
-  }, []);
-
+  /**
+   * Create the token, signed by the X wallet on the server. No browser wallet:
+   * signing in with X already gave the caller a wallet, so there is nothing to
+   * connect. The whole value map is sent; the server forces the fee wallet to the
+   * caller's own address, simulates, and signs.
+   */
   const doLaunch = useCallback(async () => {
-    if (!meta?.chosen || !account) return;
+    if (!meta?.chosen || !user) return;
     setBusy(true);
     setError(null);
     setResult(null);
-    setStatus("Encoding the call…");
+    setStatus("Signing with your X wallet…");
 
     try {
       const fn = meta.chosen;
-      const iface = new Interface([
-        {
-          type: "function",
-          name: fn.name,
-          inputs: fn.inputs,
-          outputs: [],
-          stateMutability: fn.payable ? "payable" : "nonpayable",
-        },
-      ]);
-
-      const args = buildArgs(fn.inputs, values);
-      const data = iface.encodeFunctionData(fn.name, args);
-
-      // The launch fee, plus whatever the creator wants to buy at launch.
+      const feePath = fields.find((f) => hintFor(f).fillWithAccount)?.path.join(".") || null;
       const buyKey = fields.find((f) => hintFor(f).isEth)?.path.join(".");
       const buyEth = buyKey ? Number(values[buyKey] || 0) : 0;
-      const totalEth = Number(meta.launchFeeEth || 0) + (Number.isFinite(buyEth) ? buyEth : 0);
-      const value = fn.payable ? "0x" + parseEther(String(totalEth)).toString(16) : undefined;
 
-      setStatus("Simulating before spending anything…");
-      const sim = await simulate({ from: account, to: meta.factory, data, value });
-      if (!sim.ok) {
-        setError(
-          `Simulation reverted, so nothing was sent and no gas was spent. The factory rejected these arguments: ${sim.reason}`
-        );
+      const res = await fetch("/api/launch/execute", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({
+          fnName: fn.name,
+          fnInputs: fn.inputs,
+          values,
+          feePath,
+          buyEth,
+          network,
+        }),
+      });
+      const json = await res.json();
+
+      if (!res.ok) {
+        setError(json.hint ? `${json.error} ${json.hint}` : json.error || "The launch failed.");
         setStatus(null);
         return;
       }
 
-      setStatus("Confirm in your wallet…");
-      const txHash = await sendTransaction({ from: account, to: meta.factory, data, value });
-
-      setStatus("Waiting for the transaction to confirm…");
-      const receipt = await waitForReceipt(txHash);
-
-      if (receipt.status === "0x0") {
-        setError("The transaction was mined but reverted. Nothing was launched.");
-        setStatus(null);
-        return;
-      }
-
-      // The factory emits TokenLaunched with the new token as the first topic.
-      const launchedLog = receipt.logs?.find(
-        (log) =>
-          log.topics?.[0]?.toLowerCase() ===
-          "0xdb51ea9ad51ab453a65a4cb7e60c3cb378c9501bb002609f8f97778fb6c4235a"
-      );
-      const token = launchedLog?.topics?.[1]
-        ? "0x" + launchedLog.topics[1].slice(-40)
-        : null;
-
-      setResult({ txHash, token });
+      setResult({ txHash: json.hash, token: json.token });
       setStatus(null);
 
-      if (token) {
+      if (json.token) {
         // Record it so this site's feed can show its own launches.
         await fetch("/api/registry", {
           method: "POST",
           headers: { "Content-Type": "application/json" },
-          body: JSON.stringify({ token, txHash, deployer: account }),
+          body: JSON.stringify({ token: json.token, txHash: json.hash, deployer: json.owner }),
         }).catch(() => {});
-        onLaunched?.(token);
+        onLaunched?.(json.token);
       }
-    } catch (err) {
-      setError(humanError(err));
+    } catch {
+      setError("Could not reach the create endpoint.");
       setStatus(null);
     } finally {
       setBusy(false);
     }
-  }, [meta, account, values, fields, onLaunched]);
+  }, [meta, user, values, fields, network, onLaunched]);
 
   return (
     <>
@@ -381,20 +300,20 @@ export default function LaunchForm({ network, onLaunched, prefill = null }) {
 
           {meta?.chosen && (
             <>
-              {!account ? (
-                <div className="wallet-cta">
-                  <button className="btn btn-primary" onClick={doConnect} disabled={!hasWallet()}>
-                    Connect wallet
-                  </button>
-                  <span className="form-note">
-                    {hasWallet()
-                      ? "Your wallet signs the launch. Nothing is sent until you approve it."
-                      : "No browser wallet detected. Install MetaMask or another EVM wallet."}
-                  </span>
+              {user ? (
+                <div className="form-note wallet-row">
+                  <span className="live-dot" /> Creating with your X wallet
+                  {xWallet ? ` ${shortAddress(xWallet)}` : ""} · @{user.username}
                 </div>
               ) : (
-                <div className="form-note wallet-row">
-                  <span className="live-dot" /> {shortAddress(account)} · Robinhood Chain
+                <div className="wallet-cta">
+                  <button className="btn btn-x" onClick={onSignIn}>
+                    <XLogo /> Sign in with X to create
+                  </button>
+                  <span className="form-note">
+                    Signing in with X gives you a wallet automatically, so there is nothing to
+                    connect. It signs the launch for you.
+                  </span>
                 </div>
               )}
 
@@ -476,11 +395,7 @@ export default function LaunchForm({ network, onLaunched, prefill = null }) {
               )}
 
               <div className="launch-foot">
-                <button
-                  className="btn btn-primary"
-                  onClick={doLaunch}
-                  disabled={busy || !account}
-                >
+                <button className="btn btn-primary" onClick={doLaunch} disabled={busy || !user}>
                   {busy ? (
                     <>
                       <span className="spinner" />
@@ -491,7 +406,9 @@ export default function LaunchForm({ network, onLaunched, prefill = null }) {
                   )}
                 </button>
                 <span className="form-note">
-                  Simulated first, so a bad argument costs nothing.
+                  {user
+                    ? "Simulated first, so a bad argument costs nothing. Paid from your X wallet."
+                    : "Sign in with X above to create."}
                 </span>
               </div>
 

@@ -206,16 +206,6 @@ export default function Profile({ network, user, onSignIn, onNavigate }) {
                 </div>
               )}
             </div>
-
-            <div className="prof-id">
-              <div className="stat-label">Browser wallet</div>
-              <div className={`prof-id-main ${account ? "prof-mono" : "prof-id-off"}`}>
-                {account ? shortAddress(account) : "not connected"}
-              </div>
-              <div className="stat-sub">
-                {account ? "signs its own transactions" : "optional, the X wallet works too"}
-              </div>
-            </div>
           </div>
 
           {wallet?.address && (

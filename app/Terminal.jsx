@@ -538,24 +538,14 @@ function PlanCard({
 
       {!status && (
         <div className="term-actions">
-          {hasBrowserWallet && (
-            <button className="btn btn-primary" onClick={onBrowserExecute}>
-              {account ? `Confirm in wallet` : "Connect & confirm"}
-            </button>
-          )}
           {user ? (
-            <button
-              className={`btn ${hasBrowserWallet ? "" : "btn-primary"}`}
-              onClick={onXExecute}
-            >
-              Confirm with X wallet
+            <button className="btn btn-primary" onClick={onXExecute}>
+              Confirm
             </button>
           ) : (
-            !hasBrowserWallet && (
-              <button className="btn btn-x" onClick={onSignIn}>
-                Sign in with X to trade
-              </button>
-            )
+            <button className="btn btn-x" onClick={onSignIn}>
+              Sign in with X to trade
+            </button>
           )}
           <button className="btn btn-ghost" onClick={onCancel}>
             Cancel
