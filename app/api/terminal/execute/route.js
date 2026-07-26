@@ -1,15 +1,20 @@
 import { NextResponse } from "next/server";
-import { Contract, formatEther, formatUnits, getAddress, isAddress } from "ethers";
-import {
-  DEADLINE_SECONDS,
-  ERC20_ABI,
-  ROUTER_ABI,
-  deriveSigner,
-  getChain,
-  quote,
-  tokenMeta,
-} from "@/lib/engine";
+import { Contract, Interface, formatEther, formatUnits, getAddress, isAddress } from "ethers";
+import { DEADLINE_SECONDS, ERC20_ABI, deriveSigner, getChain, quote, tokenMeta } from "@/lib/engine";
 import { getSession } from "@/lib/session";
+
+/**
+ * The router's swap function comes in two shapes across Uniswap V3 deployments:
+ * SwapRouter02 (no deadline) and the older SwapRouter (deadline in the tuple).
+ * They have different selectors, so we encode both and use whichever the chain
+ * accepts on a dry run.
+ */
+const ROUTER_V2 = new Interface([
+  "function exactInputSingle((address tokenIn, address tokenOut, uint24 fee, address recipient, uint256 amountIn, uint256 amountOutMinimum, uint160 sqrtPriceLimitX96) params) payable returns (uint256 amountOut)",
+]);
+const ROUTER_V1 = new Interface([
+  "function exactInputSingle((address tokenIn, address tokenOut, uint24 fee, address recipient, uint256 deadline, uint256 amountIn, uint256 amountOutMinimum, uint160 sqrtPriceLimitX96) params) payable returns (uint256 amountOut)",
+]);
 
 /**
  * POST /api/terminal/execute — sign and send a trade from the caller's X wallet.
@@ -201,30 +206,54 @@ export async function POST(request) {
       }
     }
 
-    const router = new Contract(swapRouter, ROUTER_ABI, signer);
-    const params = {
+    // The pons router pairs with QuoterV2, which is the SwapRouter02 era, and
+    // SwapRouter02's exactInputSingle has NO deadline field. But a handful of
+    // Uniswap V3 deployments still run the older SwapRouter (deadline included),
+    // and the two have different selectors — call the wrong one and the router
+    // reverts with no data. So build both, dry-run each, and send whichever the
+    // chain actually accepts. That is what turns a "simulation reverted" into a
+    // real, landed swap.
+    const base = {
       tokenIn: isBuy ? weth : token,
       tokenOut: isBuy ? token : weth,
       fee: poolFee,
       recipient: owner,
-      deadline: Math.floor(Date.now() / 1000) + DEADLINE_SECONDS,
       amountIn,
       amountOutMinimum: minOut,
       sqrtPriceLimitX96: 0n,
     };
-    const overrides = isBuy ? { value: amountIn } : {};
+    const value = isBuy ? amountIn : 0n;
+    const variants = [
+      { name: "SwapRouter02", data: ROUTER_V2.encodeFunctionData("exactInputSingle", [base]) },
+      {
+        name: "SwapRouter",
+        data: ROUTER_V1.encodeFunctionData("exactInputSingle", [
+          { ...base, deadline: Math.floor(Date.now() / 1000) + DEADLINE_SECONDS },
+        ]),
+      },
+    ];
 
-    // ---- Dry run. A revert here costs nothing; on chain it costs gas. ----
-    try {
-      await router.exactInputSingle.staticCall(params, overrides);
-    } catch (error) {
+    // ---- Dry run each variant. A revert here costs nothing. ----
+    let chosen = null;
+    let lastError = null;
+    for (const variant of variants) {
+      try {
+        await provider.call({ to: swapRouter, data: variant.data, value, from: owner });
+        chosen = variant;
+        break;
+      } catch (error) {
+        lastError = error;
+      }
+    }
+
+    if (!chosen) {
       return NextResponse.json(
         {
           error: `Simulation reverted, so nothing was sent: ${
-            error.shortMessage || error.reason || error.message
+            lastError?.shortMessage || lastError?.reason || lastError?.message || "execution reverted"
           }`,
           hint: isBuy
-            ? "The pool may be too thin for this size."
+            ? "The pool may be too thin for this size, or the router does not accept native ETH."
             : "A reverting sell is the classic honeypot signature — run `audit` on this token.",
           approvalHash,
         },
@@ -232,7 +261,7 @@ export async function POST(request) {
       );
     }
 
-    const tx = await router.exactInputSingle(params, overrides);
+    const tx = await signer.sendTransaction({ to: swapRouter, data: chosen.data, value });
     const receipt = await tx.wait();
 
     if (receipt.status === 0) {
