@@ -140,7 +140,7 @@ export default function LaunchFeed({ network, onAudit, onTrade, nonce }) {
     try {
       const [feedRes, ourRes] = await Promise.all([
         fetch(`/api/launches?network=${encodeURIComponent(network)}&limit=12`),
-        fetch("/api/registry"),
+        fetch(`/api/registry?network=${encodeURIComponent(network)}`),
       ]);
       const json = await feedRes.json();
       if (!feedRes.ok) setError(json.hint ? `${json.error} ${json.hint}` : json.error);
@@ -159,15 +159,15 @@ export default function LaunchFeed({ network, onAudit, onTrade, nonce }) {
   }, [load, nonce]);
 
   const stats = data?.stats;
-  const ethUsd = data?.ethUsd ?? null;
   const allLaunches = data?.launches || [];
+  const ourLaunches = ours?.launches || [];
 
-  // Tokens launched through this site, matched against the on-chain feed.
-  const ourSet = new Set((ours?.tokens || []).map((t) => t.toLowerCase()));
-  const launches =
-    scope === "ours"
-      ? allLaunches.filter((l) => ourSet.has(l.token.toLowerCase()))
-      : allLaunches;
+  // "Launched here" is read straight from the registry and enriched on its own,
+  // so a token created seconds ago shows up even when it sits past the general
+  // feed's bounded window. "All" is the on-chain factory feed.
+  const ourCount = ours?.tokens?.length ?? ourLaunches.length;
+  const launches = scope === "ours" ? ourLaunches : allLaunches;
+  const ethUsd = (scope === "ours" ? ours?.ethUsd : data?.ethUsd) ?? data?.ethUsd ?? null;
   const graduated = launches.filter((l) => l.graduated === true);
   const trading = launches.filter((l) => l.graduated !== true);
 
@@ -218,7 +218,7 @@ export default function LaunchFeed({ network, onAudit, onTrade, nonce }) {
 
       <div className="side-toggle">
         {[
-          ["ours", `Launched here${ourSet.size ? ` · ${ourSet.size}` : ""}`],
+          ["ours", `Launched here${ourCount ? ` · ${ourCount}` : ""}`],
           ["all", "All pons launches"],
         ].map(([key, label]) => (
           <button
@@ -277,7 +277,7 @@ export default function LaunchFeed({ network, onAudit, onTrade, nonce }) {
         </div>
       )}
 
-      {!loading && !error && launches.length === 0 && (
+      {!loading && !error && scope === "all" && launches.length === 0 && (
         <div className="alert">
           <span className="alert-icon">·</span>
           <span>
