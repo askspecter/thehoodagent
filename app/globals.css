@@ -87,8 +87,8 @@ body::after {
 
 /* The centred column. Header, page content and footer each get their own copy,
    so vertical spacing is owned per-section rather than by one giant wrapper. */
-.shell {
-  max-width: 1080px;
+.wrap {
+  max-width: 1040px;
   margin: 0 auto;
   padding: 0 16px;
 }
@@ -211,6 +211,9 @@ body::after {
   height: 1em;
   background: var(--lime);
   margin-left: 0.18em;
+  /* Cancel the advance width so the cursor never wraps onto a line of its own
+     under a tight heading — it paints after the last word instead. */
+  margin-right: -0.68em;
   vertical-align: -0.12em;
   animation: blink 1.1s step-end infinite;
 }
@@ -1853,12 +1856,13 @@ textarea.input {
 }
 
 .term-example {
-  font-family: ui-monospace, "Lucida Console", Menlo, Consolas, monospace;
+  font-family: var(--mono);
   font-size: 11px;
   color: var(--lime);
   background: rgba(180, 255, 60, 0.07);
   border: 1px solid rgba(180, 255, 60, 0.22);
-  border-radius: 999px;
+  /* Square, like every other box — the pill was the one rounded thing left. */
+  border-radius: 0;
   padding: 5px 11px;
   cursor: pointer;
   white-space: nowrap;
@@ -2414,375 +2418,200 @@ textarea.input {
   }
 }
 
+
 /* ============================================================================
- * WINDOWS 98 SKIN  (appended override — colours unchanged, style only)
+ * FLAT CHROME
  *
- * Reskins the existing chrome into dark-mode Win98: 3D bevels, a title bar,
- * folder tabs, sunken wells. It overrides visual properties on the shared
- * classes and comes last, so it wins without deleting any layout rules above.
- * The lime/black palette and the reserved status colours are untouched.
+ * The Win98 skin that used to be appended here is gone. One system remains:
+ * flat surfaces, hairline borders, square corners. Narrative text reads in a
+ * narrow UI face; the terminal, addresses and every numeric figure stay
+ * monospace — words are sans, data is mono.
  * ==========================================================================*/
 
 :root {
-  --hi: #4e4e47;
-  --hi2: #333330;
-  --lo: #000000;
-  --lo2: #131311;
-  --raise: inset -1px -1px 0 var(--lo), inset 1px 1px 0 var(--hi),
-    inset -2px -2px 0 var(--lo2), inset 2px 2px 0 var(--hi2);
-  --sink: inset -1px -1px 0 var(--hi), inset 1px 1px 0 var(--lo),
-    inset -2px -2px 0 var(--hi2), inset 2px 2px 0 var(--lo2);
-  /* Narrow, cross-platform fallback. Geneva/Verdana rendered much wider on iOS
-     and pushed text against the edges; Helvetica Neue / Arial are far closer to
-     Tahoma's width, so the mobile layout matches what the screenshots show. */
-  --ui98: Tahoma, "Segoe UI", "Helvetica Neue", Arial, sans-serif;
-}
-
-/* Square corners everywhere — Win98 has no rounded anything. */
-.shell,
-.shell *,
-.tape,
-.tape * {
-  border-radius: 0 !important;
+  /* Narrow, cross-platform UI face. Wider stacks pushed text against edges on
+     iOS; Helvetica Neue / Arial track close to Tahoma. */
+  --ui: Tahoma, "Segoe UI", "Helvetica Neue", Arial, sans-serif;
 }
 
 body {
-  font-family: var(--ui98);
-  background-color: var(--page);
-  background-image: radial-gradient(rgba(201, 243, 29, 0.05) 1px, transparent 1px);
-  background-size: 4px 4px;
+  font-family: var(--ui);
 }
-body::after { display: none; } /* drop the scanline layer */
 
-/* Keep true monospace for terminals, code and numeric figures. */
+/* Data is mono: terminals, addresses, figures, code, anything typed. */
 .term-screen, .term-console, .term-input, .term-line, .term-prompt,
 .token-meta, .wal-addr, .wal-key, .prof-mono, .bar-value, .bar-label,
 .meter-num, .score-figure, .stat-value, .tok-fig, .tok-rank, .tok-foot,
-code, .field-type {
-  font-family: ui-monospace, "Lucida Console", Menlo, Consolas, monospace !important;
+.console-bar, .term-card-meta, .term-chip, .term-help-cmd, .lp-cmd-line,
+.input, .select, .field-type, code {
+  font-family: var(--mono);
 }
 
-/* ---- The window ---- */
-.tape { display: none; }  /* the marquee was "too much"; drop it */
-
-.shell {
-  max-width: 1000px;
-  margin: 22px auto 40px;
-  padding: 26px 4px 4px;   /* room for the title bar */
-  background: var(--surface-1);
-  box-shadow: var(--raise);
-  position: relative;
+/* The command marquee read as noise — the header carries the brand alone. */
+.tape {
+  display: none;
 }
 
-/* Title bar injected without touching JSX. */
-.shell::before {
-  content: "CABLE.EXE  —  Robinhood Chain          ─  ▢  ✕";
-  position: absolute;
-  top: 3px;
-  left: 3px;
-  right: 3px;
-  height: 20px;
-  display: flex;
-  align-items: center;
-  padding: 0 8px;
-  background: linear-gradient(90deg, var(--lime), var(--lime-dim));
-  color: #0a0a0a;
-  font-family: var(--ui98);
-  font-weight: 700;
-  font-size: 12px;
-  letter-spacing: 0.02em;
-  white-space: pre;
-  overflow: hidden;
-}
+/* ---------- Header: one flat strip ---------- */
 
-/* Topbar becomes a raised toolbar strip beneath the title bar. */
 .topbar {
-  border-bottom: 0 !important;
-  box-shadow: var(--raise);
-  margin: 4px 0 6px;
-  padding: 8px 10px !important;
+  padding: 15px 0;
 }
 
+/* Just the logo and the wordmark — no boxed tile around them. */
 .brand-mark {
-  border: 0 !important;
-  box-shadow: var(--raise);
-  padding: 5px 10px !important;
-  color: var(--text-primary) !important;
-}
-.brand:hover .brand-mark { box-shadow: var(--raise) !important; }
-
-/* ---- Folder tabs ---- */
-.nav {
-  border-bottom: 0 !important;
-  gap: 2px !important;
-  padding: 0 4px;
-}
-.nav-tab {
-  box-shadow: var(--raise);
-  border-bottom: 0 !important;
-  background: var(--surface-1) !important;
-  margin-bottom: -1px;
-}
-.nav-on {
-  color: var(--lime) !important;
-  background: var(--surface-1) !important;
-  box-shadow: inset 1px 1px 0 var(--hi), inset -1px 0 0 var(--lo),
-    inset 2px 2px 0 var(--hi2) !important;
+  border: 0;
+  padding: 0;
+  gap: 9px;
 }
 
-/* ---- Buttons ---- */
-.btn {
-  border: 0 !important;
-  box-shadow: var(--raise);
-  background: var(--surface-1);
-  color: var(--text-primary);
-}
-.btn:hover:not(:disabled) { background: var(--surface-2); }
-.btn:active:not(:disabled) { box-shadow: var(--sink); }
-.btn-primary { background: var(--lime) !important; color: #0a0a0a !important; }
-.btn-x { background: #fff !important; color: #0a0a0a !important; }
-.btn-ghost { box-shadow: var(--raise); }
-
-/* ---- Wells: inputs, selects, terminal input ---- */
-.input, .select, .term-input, .term-input-row {
-  border: 0 !important;
-  box-shadow: var(--sink);
-  background: #0d0d0c !important;
+.brand:hover .brand-mark {
+  box-shadow: none;
+  color: var(--lime);
 }
 
-/* ---- Beveled surfaces ---- */
-.panel, .console, .tok, .stat, .wal-act, .social-chip, .tok-badge,
-.term-card, .term-chip, .menu-sheet, .menu-item, .step, .cap {
-  box-shadow: var(--raise);
-  border: 0 !important;
-  background: var(--surface-1);
-}
-
-/* Sunken wells for output/figures. */
-.term-screen, .term-console, .console-bar, .token-head, .tok-figures,
-.wal-balance, .wal-key, .bar-track, .meter-track, .stat,
-.score-tile, .prof-row, .logo-preview {
-  box-shadow: var(--sink);
-  border: 0 !important;
-}
-.term-screen, .term-console { background: #0d0d0c !important; }
-
-/* Segmented Win98 progress fill. */
-.meter-fill {
-  background: repeating-linear-gradient(90deg,
-    var(--lime) 0, var(--lime) 8px, #0d0d0c 8px, #0d0d0c 10px) !important;
-}
-
-/* Findings log divider stays, but drop card borders to bevels. */
-.finding { border-top-color: var(--hairline) !important; }
-
-/* Status bar at the foot of the window. */
-.disclaimer, footer.disclaimer {
-  border-top: 0 !important;
-  box-shadow: var(--sink);
-  margin: 10px 0 0 !important;
-  padding: 6px 10px !important;
-  font-size: 11px !important;
-}
-
-/* Logo — the uploaded CABLE mark. Wordmark + title-bar window icon. */
-.brand-mark {
-  display: inline-flex;
-  align-items: center;
-  gap: 8px;
-}
 .brand-logo {
-  width: 18px;
-  height: 18px;
+  width: 24px;
+  height: 24px;
   object-fit: contain;
-  box-shadow: var(--sink);
-  padding: 1px;
   flex-shrink: 0;
+  /* The PNG carries a solid black background; screen blending drops it so
+     only the lime mark shows on the dark page. */
+  mix-blend-mode: screen;
 }
 
-/* Put the logo in the title bar as the window icon, left of the caption. */
-.shell::before {
-  background: url("/cable.png") 4px center / 15px 15px no-repeat,
-    linear-gradient(90deg, var(--lime), var(--lime-dim));
-  padding-left: 25px;
+/* The menu button is just the burger lines, like the rest of the header. */
+.menu-btn {
+  border: 0;
+  background: none;
+  width: 40px;
+  height: 40px;
 }
 
-/* ============================================================================
- * Remove the title bar (user request) + tidy the mobile layout.
- * ==========================================================================*/
+.nav {
+  margin-bottom: 4px;
+}
 
-/* No more CABLE.EXE title strip — the wordmark carries the brand now. */
-.shell::before {
-  content: none !important;
-  display: none !important;
+.page-main {
+  padding-top: 18px;
 }
-.shell {
-  padding-top: 4px !important;
-}
+
+/* ---------- Small screens ---------- */
 
 @media (max-width: 560px) {
-  .desktop {
-    padding: 8px 6px 26px;
-  }
-  .shell {
-    margin: 8px auto 26px;
-    padding: 4px !important;
-  }
-  .topbar {
-    padding: 8px !important;
-    margin-bottom: 4px;
-  }
-  .brand-mark {
-    font-size: 13px;
-  }
-  .hero {
-    padding: 16px 2px 10px;
-  }
-  .hero-tight {
-    padding: 12px 2px 8px;
-  }
-  .hero h1 {
-    font-size: clamp(23px, 8.5vw, 32px);
-  }
-  .hero p {
-    font-size: 12px;
-  }
-  /* The empty terminal screen was a huge void on a phone — tighten it. */
-  .term-screen {
-    min-height: 24vh !important;
-  }
-  /* Drop the long explainer under the terminal on small screens. */
-  .term-foot {
-    display: none;
-  }
-  .disclaimer,
-  footer.disclaimer {
-    font-size: 10px !important;
-    padding: 6px 8px !important;
-  }
-  /* Slippage control wraps under the terminal caption instead of crowding it. */
-  .console-bar {
-    flex-wrap: wrap;
-    gap: 6px;
-  }
-}
-
-/* ============================================================================
- * Mobile: fill the viewport. The window used to stop mid-screen and leave a
- * black void below. Now the shell fills the height and the terminal screen
- * grows into the slack, so nothing is left empty.
- * ==========================================================================*/
-@media (max-width: 560px) {
-  .desktop {
-    min-height: 100vh;
-    min-height: 100dvh;
-    display: flex;
-    flex-direction: column;
-    padding: 8px 6px 10px;
-  }
-  .shell {
-    flex: 1 1 auto;
-    display: flex;
-    flex-direction: column;
-    min-height: 0;
-    margin: 0 auto;
-  }
-  /* On the terminal view the console box absorbs the slack. */
-  .term-console {
-    flex: 1 1 auto;
-    display: flex;
-    flex-direction: column;
-    min-height: 0;
-  }
-  .term-screen {
-    flex: 1 1 auto;
-    min-height: 18vh !important;
-  }
-  /* On every view the status bar is pinned to the window's bottom edge, so any
-     remaining space sits inside the window rather than as a void beneath it. */
-  .disclaimer,
-  footer.disclaimer {
-    margin-top: auto;
-  }
-}
-
-/* The routed layout has no .desktop or single .shell wrapper anymore: <body>
- * holds the header column and <main class="wrap page-main">. Make body a flex
- * column and let the page column grow, so a short page (the terminal) fills the
- * screen instead of leaving a black void beneath it. */
-@media (max-width: 560px) {
+  /* The page is a flex column so a short route (the terminal) fills the
+     viewport instead of leaving a void beneath it. A flex child with auto side
+     margins stops stretching, so the column is pinned to full width here —
+     without it the header shrink-wrapped and floated in the centre. */
   body {
     min-height: 100vh;
     min-height: 100dvh;
     display: flex;
     flex-direction: column;
   }
+
+  .wrap {
+    width: 100%;
+    padding: 0 14px;
+  }
+
   .page-main {
     flex: 1 1 auto;
     display: flex;
     flex-direction: column;
     min-height: 0;
+    padding-top: 12px;
+    padding-bottom: 40px;
   }
-  /* The terminal's own children live in a fragment, so the console is a direct
-     flex child of page-main and absorbs the slack. */
+
+  /* On the terminal route the console absorbs the slack and its screen grows
+     into it, so the prompt sits near the thumb instead of mid-screen. */
   .term-console {
     flex: 1 1 auto;
     display: flex;
     flex-direction: column;
     min-height: 0;
   }
+
   .term-screen {
     flex: 1 1 auto;
-    min-height: 20vh !important;
+    min-height: 22vh;
+    max-height: none;
+    padding: 12px 14px;
   }
-}
 
-/* ============================================================================
- * Mobile breathing room. On a real iPhone the wider fallback font pushed text
- * against the bevels; combined with the narrower --ui98 stack above, this gives
- * every text box room and trims the mono sizes so nothing crowds the edges.
- * ==========================================================================*/
-@media (max-width: 560px) {
-  /* Pull content in from the window frame — the main "mepet" fix. */
-  .shell {
-    padding: 4px 12px 12px !important;
+  .topbar {
+    padding: 12px 0;
   }
-  .hero,
+
+  .hero {
+    padding: 18px 0 12px;
+  }
+
   .hero-tight {
-    padding-left: 4px;
-    padding-right: 4px;
+    padding: 12px 0 8px;
   }
+
   .hero h1 {
-    font-size: clamp(21px, 7.4vw, 30px);
+    font-size: clamp(22px, 7.4vw, 30px);
   }
+
+  .hero p {
+    font-size: 12.5px;
+  }
+
   .eyebrow {
-    padding: 7px 12px;
+    padding: 6px 10px;
     line-height: 1.4;
   }
+
+  .panel,
+  .console-body {
+    padding: 14px;
+  }
+
   .console-bar {
+    flex-wrap: wrap;
+    gap: 6px;
+    row-gap: 4px;
     padding: 9px 13px;
+    white-space: normal;
   }
-  .term-screen {
-    padding: 13px 14px !important;
-  }
-  .term-chip {
-    padding: 8px 12px !important;
-  }
-  .nav-tab {
-    padding: 12px 14px !important;
-  }
-  .disclaimer,
-  footer.disclaimer {
-    padding: 8px 13px !important;
-    line-height: 1.55;
-  }
-  /* A touch smaller so the wide iOS monospace does not crowd the edges. */
+
+  /* A touch smaller so wide mobile monospace does not crowd the edges. */
   .term-screen,
   .term-line,
   .term-input,
   .term-prompt,
   .term-chip {
-    font-size: 12px !important;
+    font-size: 12px;
+  }
+
+  .term-chip {
+    padding: 8px 12px;
+  }
+
+  /* The long explainer under the terminal is desktop furniture. */
+  .term-foot {
+    display: none;
+  }
+
+  .stat {
+    padding: 12px 10px;
+  }
+
+  .stat-value {
+    font-size: 21px;
+  }
+
+  /* The disclaimer doubles as the page's status line: pinned to the bottom of
+     the column so leftover space sits above it, not beneath the page. */
+  .disclaimer,
+  footer.disclaimer {
+    margin-top: auto;
+    padding-top: 14px;
+    font-size: 10px;
+    line-height: 1.55;
   }
 }
 
@@ -3086,118 +2915,4 @@ code, .field-type {
   .lp-foot-cta {
     padding: 24px 18px;
   }
-}
-
-/* ============================================================================
- * CLEAN CHROME + .wrap  (final override — wins over the Win98 skin)
- *
- * Splitting the app into routes turned each section into its own raised Win98
- * "window", so the header stacked three beveled frames deep. `.wrap` is a plain
- * centred column that skips the window treatment entirely, and the header is
- * flattened to one clean bar: CABLE at the left, the menu at the right, nothing
- * nested. The content panels keep the theme; only the chrome is flattened.
- * ==========================================================================*/
-
-.wrap {
-  max-width: 1040px;
-  margin: 0 auto;
-  padding: 0 16px;
-}
-.wrap,
-.wrap * {
-  border-radius: 0;
-}
-
-/* Header: one flat strip with a single hairline under it. */
-.topbar {
-  box-shadow: none !important;
-  background: none !important;
-  border-bottom: 1px solid var(--hairline) !important;
-  margin: 0 !important;
-  padding: 15px 0 !important;
-}
-
-/* CABLE: just the logo and the wordmark, no boxed tile. */
-.brand-mark {
-  box-shadow: none !important;
-  border: 0 !important;
-  padding: 0 !important;
-  color: var(--text-primary) !important;
-  gap: 9px;
-}
-.brand-logo {
-  box-shadow: none !important;
-  padding: 0 !important;
-  width: 22px !important;
-  height: 22px !important;
-}
-
-/* The menu button: one clean thin box, no bevel. */
-.menu-btn {
-  box-shadow: none !important;
-  border: 1px solid var(--hairline-bright) !important;
-  background: var(--surface-1) !important;
-}
-
-/* Tabs: flat, the active one carries a lime underline (state is not colour alone). */
-.nav {
-  box-shadow: none !important;
-  border-bottom: 1px solid var(--hairline) !important;
-  margin-bottom: 4px;
-  padding: 0 !important;
-}
-.nav-tab {
-  box-shadow: none !important;
-  background: none !important;
-  margin-bottom: 0 !important;
-}
-.nav-tab:hover {
-  background: var(--surface-1) !important;
-}
-.nav-on {
-  box-shadow: none !important;
-  background: var(--surface-1) !important;
-  border-bottom: 2px solid var(--lime) !important;
-}
-
-/* The page column: no window frame, comfortable breathing room. */
-.page-main {
-  padding-top: 18px;
-  padding-bottom: 72px;
-}
-
-@media (max-width: 560px) {
-  .topbar {
-    padding: 12px 0 !important;
-  }
-  .wrap {
-    padding: 0 14px;
-  }
-}
-
-/* ============================================================================
- * HEADER: no boxes  (final)
- * The logo PNG has a solid black background, which read as a dark tile on the
- * dotted page. `screen` blending drops that black so only the lime mark shows.
- * The menu button loses its border too — just the burger lines, like the rest.
- * ==========================================================================*/
-.brand-logo {
-  width: 24px !important;
-  height: 24px !important;
-  mix-blend-mode: screen;   /* black background disappears, lime mark stays */
-  box-shadow: none !important;
-  padding: 0 !important;
-  background: none !important;
-}
-
-.menu-btn {
-  border: 0 !important;
-  background: none !important;
-  box-shadow: none !important;
-  width: 40px;
-  height: 40px;
-}
-.menu-btn:hover,
-.menu-btn:focus-visible {
-  color: var(--lime);
 }
