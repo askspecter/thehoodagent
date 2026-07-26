@@ -79,6 +79,7 @@ export const DESTINATIONS = [
   { key: "create", label: "Create", href: "/create", hint: "deploy a token" },
   { key: "trade", label: "Trade", href: "/trade", hint: "the manual form" },
   { key: "audit", label: "Audit", href: "/audit", hint: "can you sell it?" },
+  { key: "utility", label: "Utility", href: "/utility", hint: "hold-to-use + buyback" },
   { key: "profile", label: "Profile", href: "/profile", hint: "your bags, priced" },
 ];
 
