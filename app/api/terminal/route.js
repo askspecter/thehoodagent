@@ -3,8 +3,10 @@ import { Contract, JsonRpcProvider, formatUnits, getAddress, isAddress } from "e
 import {
   buildTradePlan,
   deriveAddress,
+  enrichLaunchesByAddress,
   getChain,
   getEthUsd,
+  listLaunched,
   listLaunches,
   parseCommand,
   resolveToken,
@@ -213,9 +215,26 @@ export async function POST(request) {
           });
         }
 
+        // Scan the feed window AND everything launched through this site. A
+        // token you just made or bought can sit outside the feed's block
+        // window, and the old scan missed exactly those — so a fresh position
+        // showed "0 launches held". Union both, deduped by address.
+        let scanTargets = launches;
+        try {
+          const registry = await listLaunched({ limit: 50 });
+          const known = new Set(launches.map((l) => l.token.toLowerCase()));
+          const extra = registry.tokens.filter((t) => !known.has(t.toLowerCase()));
+          if (extra.length) {
+            const enriched = await enrichLaunchesByAddress(provider, chain, extra);
+            scanTargets = [...launches, ...enriched];
+          }
+        } catch {
+          /* registry is optional — a feed-only scan is still useful */
+        }
+
         const holdings = [];
         await Promise.all(
-          launches.map(async (l) => {
+          scanTargets.map(async (l) => {
             try {
               const erc20 = new Contract(l.token, BALANCE_ABI, provider);
               const raw = await erc20.balanceOf(owner.address);
@@ -252,7 +271,7 @@ export async function POST(request) {
               holdings,
               totalWeth:
                 eth + holdings.reduce((sum, h) => sum + (h.valueWeth || 0), 0),
-              scanned: launches.length,
+              scanned: scanTargets.length,
             },
           })
         );

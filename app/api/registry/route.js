@@ -1,12 +1,14 @@
 import { NextResponse } from "next/server";
-import { JsonRpcProvider } from "ethers";
+import { JsonRpcProvider, getAddress } from "ethers";
 import {
   recordLaunch,
   listLaunched,
   enrichLaunchesByAddress,
+  deriveAddress,
   getChain,
   getEthUsd,
 } from "@/lib/engine";
+import { getSession } from "@/lib/session";
 
 /**
  * GET  /api/registry        → tokens launched through this site, newest first
@@ -31,6 +33,20 @@ export async function GET(request) {
   const url = new URL(request.url);
   const network = url.searchParams.get("network") || "robinhood";
 
+  // The viewer's own X handle + wallet, so a launch they made is credited to
+  // them even when its registry entry predates handle-recording (or the
+  // in-memory registry was reset). getSession may throw with no SESSION_SECRET;
+  // that just means "no viewer", not an error worth failing the feed over.
+  let me = null;
+  try {
+    const session = await getSession();
+    if (session?.username && session?.id) {
+      me = { handle: session.username.replace(/^@/, ""), wallet: getAddress(deriveAddress(session.id)) };
+    }
+  } catch {
+    /* no viewer identity available */
+  }
+
   try {
     const result = await listLaunched({ limit: 50 });
 
@@ -50,10 +66,12 @@ export async function GET(request) {
           .filter((e) => e.xUsername)
           .map((e) => [e.token.toLowerCase(), e.xUsername])
       );
-      launches = enriched.map((l) => ({
-        ...l,
-        xUsername: handleByToken.get(l.token.toLowerCase()) || null,
-      }));
+      launches = enriched.map((l) => {
+        const recorded = handleByToken.get(l.token.toLowerCase());
+        // Fall back to the viewer's handle when they are the launch's deployer.
+        const mine = me && l.deployer && getAddress(l.deployer) === me.wallet ? me.handle : null;
+        return { ...l, xUsername: recorded || mine || null };
+      });
       ethUsd = rate?.usd ?? null;
     }
 

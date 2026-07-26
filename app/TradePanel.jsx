@@ -33,6 +33,11 @@ export default function TradePanel({ network, token: initialToken, user, onSignI
   const [busy, setBusy] = useState(false);
   const [done, setDone] = useState(null);
 
+  // The X wallet's balances, shown next to the amount field so you never have to
+  // leave for the Profile tab to see what you can spend.
+  const [ethBalance, setEthBalance] = useState(null);
+  const [tokBalance, setTokBalance] = useState(null);
+
   useEffect(() => {
     fetch(`/api/factory?network=${encodeURIComponent(network)}`)
       .then((r) => r.json())
@@ -44,11 +49,50 @@ export default function TradePanel({ network, token: initialToken, user, onSignI
     if (initialToken) setToken(initialToken);
   }, [initialToken]);
 
+  // Native ETH balance. Reloads after a trade so the figure stays honest.
+  useEffect(() => {
+    if (!user) {
+      setEthBalance(null);
+      return;
+    }
+    let cancelled = false;
+    fetch(`/api/wallet?network=${encodeURIComponent(network)}`)
+      .then((r) => r.json())
+      .then((json) => {
+        if (!cancelled && json?.balance) setEthBalance(Number(json.balance.formatted));
+      })
+      .catch(() => {});
+    return () => {
+      cancelled = true;
+    };
+  }, [user, network, done]);
+
+  // The current token's balance, for the sell side and as a "you hold" hint.
+  useEffect(() => {
+    const t = token.trim();
+    if (!user || !/^0x[a-fA-F0-9]{40}$/.test(t)) {
+      setTokBalance(null);
+      return;
+    }
+    let cancelled = false;
+    fetch(`/api/wallet?network=${encodeURIComponent(network)}&token=${t}`)
+      .then((r) => r.json())
+      .then((json) => {
+        if (!cancelled) setTokBalance(json?.token || null);
+      })
+      .catch(() => {});
+    return () => {
+      cancelled = true;
+    };
+  }, [token, user, network, done]);
+
   /** Ask the server to quote the swap, so we can show output before signing. */
   const getQuote = useCallback(async () => {
-    setQuote(null);
     setError(null);
-    if (!token.trim() || !amount || Number(amount) <= 0) return;
+    if (!token.trim() || !amount || Number(amount) <= 0) {
+      setQuote(null);
+      return;
+    }
 
     setQuoting(true);
     try {
@@ -58,14 +102,43 @@ export default function TradePanel({ network, token: initialToken, user, onSignI
         body: JSON.stringify({ token: token.trim(), side, amount, network, slippage }),
       });
       const json = await res.json();
-      if (!res.ok) setError(json.error || "Could not quote this trade.");
-      else setQuote(json);
+      if (!res.ok) {
+        setError(json.error || "Could not quote this trade.");
+        setQuote(null);
+      } else {
+        setQuote(json);
+      }
     } catch {
       setError("Could not reach the quote endpoint.");
     } finally {
       setQuoting(false);
     }
   }, [token, amount, side, network, slippage]);
+
+  // Auto-quote: the moment there is a token and an amount, price it. No separate
+  // "Get quote" step — a quote you have to ask for is a quote people forget to
+  // refresh. Debounced so it does not fire on every keystroke.
+  useEffect(() => {
+    if (!token.trim() || !amount || Number(amount) <= 0) {
+      setQuote(null);
+      return;
+    }
+    const id = setTimeout(() => getQuote(), 450);
+    return () => clearTimeout(id);
+  }, [token, amount, side, slippage, network, getQuote]);
+
+  /** Fill the amount field with the whole spendable balance. */
+  const setMax = useCallback(() => {
+    if (side === "buy") {
+      if (ethBalance == null) return;
+      // Leave a little ETH for gas on the wrap + approve + swap.
+      const spendable = Math.max(0, ethBalance - 0.0002);
+      setAmount(spendable > 0 ? String(spendable) : "");
+    } else {
+      if (!tokBalance?.formatted) return;
+      setAmount(tokBalance.formatted);
+    }
+  }, [side, ethBalance, tokBalance]);
 
   /**
    * Execute the swap with the X wallet on the server. No browser wallet: signing
@@ -192,17 +265,32 @@ export default function TradePanel({ network, token: initialToken, user, onSignI
               />
             </label>
             <label className="field">
-              <span className="field-label">
-                Amount {side === "buy" ? "(ETH to spend)" : "(tokens to sell)"}
+              <span className="field-label field-label-row">
+                <span>Amount {side === "buy" ? "(ETH to spend)" : "(tokens to sell)"}</span>
+                {user && (
+                  <span className="field-bal">
+                    {side === "buy"
+                      ? ethBalance != null && `Balance: ${ethBalance.toLocaleString("en-US", {
+                          maximumFractionDigits: 6,
+                        })} ETH`
+                      : tokBalance &&
+                        `Balance: ${Number(tokBalance.formatted).toLocaleString("en-US", {
+                          maximumFractionDigits: 4,
+                        })} $${(tokBalance.symbol || "TOKEN").replace(/^\$/, "")}`}
+                    {((side === "buy" && ethBalance != null) ||
+                      (side === "sell" && tokBalance)) && (
+                      <button type="button" className="field-max" onClick={setMax}>
+                        MAX
+                      </button>
+                    )}
+                  </span>
+                )}
               </span>
               <input
                 className="input"
                 placeholder={side === "buy" ? "0.05" : "1000000"}
                 value={amount}
-                onChange={(e) => {
-                  setAmount(e.target.value);
-                  setQuote(null);
-                }}
+                onChange={(e) => setAmount(e.target.value)}
                 spellCheck={false}
               />
             </label>
@@ -228,25 +316,20 @@ export default function TradePanel({ network, token: initialToken, user, onSignI
           </div>
 
           <div className="launch-foot">
-            <button className="btn" onClick={getQuote} disabled={quoting || !token.trim() || !amount}>
-              {quoting ? (
-                <>
-                  <span className="spinner" />
-                  Quoting…
-                </>
-              ) : (
-                "Get quote"
-              )}
-            </button>
             <button
-              className="btn btn-primary"
+              className="btn btn-primary btn-wide"
               onClick={doTrade}
-              disabled={busy || !user || !quote}
+              disabled={busy || !user || !quote || quoting}
             >
               {busy ? (
                 <>
                   <span className="spinner" />
                   Working…
+                </>
+              ) : quoting ? (
+                <>
+                  <span className="spinner" />
+                  Pricing…
                 </>
               ) : side === "buy" ? (
                 "Buy"
@@ -306,7 +389,7 @@ export default function TradePanel({ network, token: initialToken, user, onSignI
                     View transaction ↗
                   </a>
                 )}
-                {side === "sell" && " Proceeds arrive as WETH."}
+                {side === "sell" && " Proceeds land back in your wallet as ETH."}
               </span>
             </div>
           )}
