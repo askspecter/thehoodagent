@@ -43,7 +43,17 @@ export async function GET(request) {
         enrichLaunchesByAddress(provider, chain, result.tokens),
         getEthUsd(),
       ]);
-      launches = enriched;
+
+      // Credit the X handle that launched each token, matched by address.
+      const handleByToken = new Map(
+        (result.entries || [])
+          .filter((e) => e.xUsername)
+          .map((e) => [e.token.toLowerCase(), e.xUsername])
+      );
+      launches = enriched.map((l) => ({
+        ...l,
+        xUsername: handleByToken.get(l.token.toLowerCase()) || null,
+      }));
       ethUsd = rate?.usd ?? null;
     }
 
@@ -61,13 +71,13 @@ export async function POST(request) {
     return NextResponse.json({ error: "Expected a JSON body." }, { status: 400 });
   }
 
-  const { token, txHash, deployer } = body || {};
+  const { token, txHash, deployer, xUsername } = body || {};
   if (!token) {
     return NextResponse.json({ error: "Provide a `token` address." }, { status: 400 });
   }
 
   try {
-    const result = await recordLaunch(token, { txHash, deployer });
+    const result = await recordLaunch(token, { txHash, deployer, xUsername });
     return NextResponse.json(result);
   } catch (error) {
     return NextResponse.json({ error: error.message }, { status: 400 });

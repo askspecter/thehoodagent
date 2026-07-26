@@ -1,5 +1,13 @@
+import {
+  Contract,
+  Interface,
+  MaxUint256,
+  formatEther,
+  formatUnits,
+  getAddress,
+  isAddress,
+} from "ethers";
 import { NextResponse } from "next/server";
-import { Contract, Interface, formatEther, formatUnits, getAddress, isAddress } from "ethers";
 import { DEADLINE_SECONDS, ERC20_ABI, deriveSigner, getChain, quote, tokenMeta } from "@/lib/engine";
 import { getSession } from "@/lib/session";
 
@@ -15,6 +23,49 @@ const ROUTER_V2 = new Interface([
 const ROUTER_V1 = new Interface([
   "function exactInputSingle((address tokenIn, address tokenOut, uint24 fee, address recipient, uint256 deadline, uint256 amountIn, uint256 amountOutMinimum, uint160 sqrtPriceLimitX96) params) payable returns (uint256 amountOut)",
 ]);
+
+/**
+ * WETH9. Every pons launch pool is a Uniswap V3 WETH pair, and the router swaps
+ * WETH, not native ETH. A buy that sends raw ETH to the router can dry-run clean
+ * and still revert on chain — which is exactly what was happening. So we wrap ETH
+ * into WETH ourselves, swap WETH for the token, and (on a sell) unwrap the WETH
+ * back to ETH. That is the plain Uniswap V3 path, with no reliance on the router
+ * accepting native ETH.
+ */
+const WETH9_ABI = [
+  "function deposit() payable",
+  "function withdraw(uint256 wad)",
+  "function balanceOf(address) view returns (uint256)",
+  "function approve(address spender, uint256 amount) returns (bool)",
+  "function allowance(address owner, address spender) view returns (uint256)",
+];
+
+/**
+ * Encode the swap in both router shapes, dry-run each, and return the one the
+ * chain actually accepts. Nothing is sent here — a revert costs nothing.
+ */
+async function chooseSwap(provider, swapRouter, owner, base) {
+  const variants = [
+    { name: "SwapRouter02", data: ROUTER_V2.encodeFunctionData("exactInputSingle", [base]) },
+    {
+      name: "SwapRouter",
+      data: ROUTER_V1.encodeFunctionData("exactInputSingle", [
+        { ...base, deadline: Math.floor(Date.now() / 1000) + DEADLINE_SECONDS },
+      ]),
+    },
+  ];
+  let lastError = null;
+  for (const variant of variants) {
+    try {
+      // value is always 0 now: the router swaps WETH, which we hold already.
+      await provider.call({ to: swapRouter, data: variant.data, value: 0n, from: owner });
+      return { chosen: variant, lastError: null };
+    } catch (error) {
+      lastError = error;
+    }
+  }
+  return { chosen: null, lastError };
+}
 
 /**
  * POST /api/terminal/execute — sign and send a trade from the caller's X wallet.
@@ -195,24 +246,42 @@ export async function POST(request) {
     );
     const minOut = (fresh.amountOut * (10_000n - slippageBps)) / 10_000n;
 
-    // ---- Approval, for sells only ----
+    const weth9 = new Contract(weth, WETH9_ABI, signer);
     let approvalHash = null;
-    if (!isBuy) {
+    let wrapHash = null;
+
+    if (isBuy) {
+      // ---- Wrap ETH → WETH, then let the router spend WETH ----
+      //
+      // The router swaps WETH, not native ETH. Wrapping here (rather than
+      // sending ETH with the swap) is the reliable Uniswap V3 path and is what
+      // fixes the on-chain revert on buys.
+      const wethBalance = await weth9.balanceOf(owner);
+      if (wethBalance < amountIn) {
+        const wrapTx = await weth9.deposit({ value: amountIn - wethBalance });
+        wrapHash = wrapTx.hash;
+        await wrapTx.wait();
+      }
+      const allowance = await weth9.allowance(owner, swapRouter);
+      if (allowance < amountIn) {
+        const approveTx = await weth9.approve(swapRouter, MaxUint256);
+        approvalHash = approveTx.hash;
+        await approveTx.wait();
+      }
+    } else {
+      // ---- Approve the token for a sell ----
       const allowance = await erc20.allowance(owner, swapRouter);
       if (allowance < amountIn) {
-        const approveTx = await erc20.approve(swapRouter, amountIn);
+        const approveTx = await erc20.approve(swapRouter, MaxUint256);
         approvalHash = approveTx.hash;
         await approveTx.wait();
       }
     }
 
-    // The pons router pairs with QuoterV2, which is the SwapRouter02 era, and
-    // SwapRouter02's exactInputSingle has NO deadline field. But a handful of
-    // Uniswap V3 deployments still run the older SwapRouter (deadline included),
-    // and the two have different selectors — call the wrong one and the router
-    // reverts with no data. So build both, dry-run each, and send whichever the
-    // chain actually accepts. That is what turns a "simulation reverted" into a
-    // real, landed swap.
+    // The swap now moves WETH↔token in both directions, so the router always
+    // receives value 0. SwapRouter02's exactInputSingle has no deadline field;
+    // the older SwapRouter does, and the two have different selectors. Build
+    // both, dry-run each, send whichever the chain accepts.
     const base = {
       tokenIn: isBuy ? weth : token,
       tokenOut: isBuy ? token : weth,
@@ -222,30 +291,8 @@ export async function POST(request) {
       amountOutMinimum: minOut,
       sqrtPriceLimitX96: 0n,
     };
-    const value = isBuy ? amountIn : 0n;
-    const variants = [
-      { name: "SwapRouter02", data: ROUTER_V2.encodeFunctionData("exactInputSingle", [base]) },
-      {
-        name: "SwapRouter",
-        data: ROUTER_V1.encodeFunctionData("exactInputSingle", [
-          { ...base, deadline: Math.floor(Date.now() / 1000) + DEADLINE_SECONDS },
-        ]),
-      },
-    ];
 
-    // ---- Dry run each variant. A revert here costs nothing. ----
-    let chosen = null;
-    let lastError = null;
-    for (const variant of variants) {
-      try {
-        await provider.call({ to: swapRouter, data: variant.data, value, from: owner });
-        chosen = variant;
-        break;
-      } catch (error) {
-        lastError = error;
-      }
-    }
-
+    const { chosen, lastError } = await chooseSwap(provider, swapRouter, owner, base);
     if (!chosen) {
       return NextResponse.json(
         {
@@ -253,15 +300,16 @@ export async function POST(request) {
             lastError?.shortMessage || lastError?.reason || lastError?.message || "execution reverted"
           }`,
           hint: isBuy
-            ? "The pool may be too thin for this size, or the router does not accept native ETH."
+            ? "The pool may be too thin for this size right now. Try a smaller amount."
             : "A reverting sell is the classic honeypot signature — run `audit` on this token.",
           approvalHash,
+          wrapHash,
         },
         { status: 400 }
       );
     }
 
-    const tx = await signer.sendTransaction({ to: swapRouter, data: chosen.data, value });
+    const tx = await signer.sendTransaction({ to: swapRouter, data: chosen.data, value: 0n });
     const receipt = await tx.wait();
 
     if (receipt.status === 0) {
@@ -271,10 +319,27 @@ export async function POST(request) {
       );
     }
 
+    // ---- On a sell, unwrap the WETH we just received back to native ETH ----
+    let unwrapHash = null;
+    if (!isBuy) {
+      try {
+        const wethBalance = await weth9.balanceOf(owner);
+        if (wethBalance > 0n) {
+          const unwrapTx = await weth9.withdraw(wethBalance);
+          unwrapHash = unwrapTx.hash;
+          await unwrapTx.wait();
+        }
+      } catch {
+        // The swap landed; if unwrap fails the proceeds are simply held as WETH.
+      }
+    }
+
     return NextResponse.json({
       ok: true,
       hash: tx.hash,
       approvalHash,
+      wrapHash,
+      unwrapHash,
       owner,
       side,
       token,
