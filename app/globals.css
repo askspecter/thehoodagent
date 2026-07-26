@@ -1314,6 +1314,14 @@ textarea.input {
   padding: 9px 14px;
 }
 
+/* Paste-a-URL fallback under the logo picker — the path that never needs
+   upload storage configured. */
+.logo-url {
+  margin-top: 12px;
+  width: 100%;
+  font-size: 12px;
+}
+
 /* ---------- Wallet panel ---------- */
 
 .wal-head {
