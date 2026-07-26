@@ -232,7 +232,12 @@ export default function LaunchForm({ network, onLaunched, prefill = null, user, 
         await fetch("/api/registry", {
           method: "POST",
           headers: { "Content-Type": "application/json" },
-          body: JSON.stringify({ token: json.token, txHash: json.hash, deployer: json.owner }),
+          body: JSON.stringify({
+            token: json.token,
+            txHash: json.hash,
+            deployer: json.owner,
+            xUsername: user?.username || null,
+          }),
         }).catch(() => {});
         onLaunched?.(json.token);
       }

@@ -1105,6 +1105,13 @@ textarea.input {
   white-space: nowrap;
 }
 
+.tok-foot-links {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  flex-shrink: 0;
+}
+
 .tok-link {
   color: var(--lime);
   text-decoration: none;
@@ -1113,6 +1120,18 @@ textarea.input {
 
 .tok-link:hover {
   text-decoration: underline;
+}
+
+/* The copy-CA control is a button so it can hit the clipboard, but it reads as
+   one of the foot links, not a chunky button. */
+.tok-ca {
+  background: none;
+  border: 0;
+  padding: 0;
+  font: inherit;
+  letter-spacing: inherit;
+  text-transform: inherit;
+  cursor: pointer;
 }
 
 .tok-actions {

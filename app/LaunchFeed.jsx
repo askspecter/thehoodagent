@@ -45,6 +45,17 @@ function TokenLogo({ launch }) {
 function LaunchCard({ launch, rank, explorer, ethUsd, onAudit, onTrade }) {
   const grad = launch.graduated;
   const progress = launch.graduationProgress;
+  const [copied, setCopied] = useState(false);
+
+  const copyCa = useCallback(async () => {
+    try {
+      await navigator.clipboard.writeText(launch.token);
+      setCopied(true);
+      setTimeout(() => setCopied(false), 1400);
+    } catch {
+      /* clipboard blocked — the SCAN link still exposes the address */
+    }
+  }, [launch.token]);
 
   return (
     <div className="tok">
@@ -99,19 +110,26 @@ function LaunchCard({ launch, rank, explorer, ethUsd, onAudit, onTrade }) {
 
       <div className="tok-foot">
         <span className="tok-meta">
-          by {shortAddr(launch.deployer)}
+          {/* Our own launches are credited to the human who made them; everything
+              else the factory made only has a wallet to show. */}
+          by {launch.xUsername ? `@${launch.xUsername}` : shortAddr(launch.deployer)}
           {launch.creatorSharePercent != null && ` · ${launch.creatorSharePercent}% fees`}
         </span>
-        {explorer && (
-          <a
-            className="tok-link"
-            href={`${explorer}/address/${launch.token}`}
-            target="_blank"
-            rel="noopener noreferrer"
-          >
-            SCAN ↗
-          </a>
-        )}
+        <span className="tok-foot-links">
+          <button className="tok-link tok-ca" onClick={copyCa} title="Copy contract address">
+            {copied ? "COPIED ✓" : "COPY CA"}
+          </button>
+          {explorer && (
+            <a
+              className="tok-link"
+              href={`${explorer}/address/${launch.token}`}
+              target="_blank"
+              rel="noopener noreferrer"
+            >
+              SCAN ↗
+            </a>
+          )}
+        </span>
       </div>
 
       <div className="tok-actions">
