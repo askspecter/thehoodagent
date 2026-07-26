@@ -8,8 +8,20 @@ import {
   isAddress,
 } from "ethers";
 import { NextResponse } from "next/server";
-import { DEADLINE_SECONDS, ERC20_ABI, deriveSigner, getChain, quote, tokenMeta } from "@/lib/engine";
+import { DEADLINE_SECONDS, deriveSigner, getChain, quote, tokenMeta } from "@/lib/engine";
 import { getSession } from "@/lib/session";
+
+/**
+ * The ERC-20 surface a trade actually touches. Defined here, not imported: the
+ * engine exports two different `ERC20_ABI`s (the audit one has no `allowance` or
+ * `approve`), and whichever loads last wins — which is what made a sell throw
+ * "allowance is not a function". Owning it locally removes that ambiguity.
+ */
+const ERC20_ABI = [
+  "function balanceOf(address) view returns (uint256)",
+  "function allowance(address owner, address spender) view returns (uint256)",
+  "function approve(address spender, uint256 amount) returns (bool)",
+];
 
 /**
  * The router's swap function comes in two shapes across Uniswap V3 deployments:

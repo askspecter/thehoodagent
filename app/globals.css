@@ -1835,6 +1835,39 @@ textarea.input {
   padding: 12px 16px;
 }
 
+/* One-tap example commands under the prompt. */
+.term-examples {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 8px;
+  padding: 0 16px 14px;
+}
+
+.term-examples-label {
+  font-size: 9px;
+  font-weight: 700;
+  letter-spacing: 0.16em;
+  text-transform: uppercase;
+  color: var(--text-muted);
+}
+
+.term-example {
+  font-family: ui-monospace, "Lucida Console", Menlo, Consolas, monospace;
+  font-size: 11px;
+  color: var(--lime);
+  background: rgba(180, 255, 60, 0.07);
+  border: 1px solid rgba(180, 255, 60, 0.22);
+  border-radius: 999px;
+  padding: 5px 11px;
+  cursor: pointer;
+  white-space: nowrap;
+}
+
+.term-example:hover {
+  background: rgba(180, 255, 60, 0.15);
+}
+
 .term-prompt {
   color: var(--lime);
   font-size: 14px;

@@ -300,7 +300,7 @@ export default function Profile({ network, user, onSignIn, onNavigate }) {
                   <span className="alert-icon">·</span>
                   <span>
                     <strong>No launches held.</strong> Open the terminal and try{" "}
-                    <code>buy $5 sonic</code>, or browse the feed first.
+                    <code>buy $5 nvda</code>, or browse the feed first.
                   </span>
                 </div>
               ) : (

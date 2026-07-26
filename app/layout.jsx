@@ -9,7 +9,7 @@ export const metadata = {
     template: "%s · CABLE",
   },
   description:
-    "A trading terminal, launchpad and token auditor for Robinhood Chain. Type a command like “buy me $5 sonic”, or paste an address to check it before you buy.",
+    "A trading terminal, launchpad and token auditor for Robinhood Chain. Type a command like “buy me $5 nvda”, or paste an address to check it before you buy.",
   openGraph: {
     title: "CABLE",
     description: "Launch, trade and audit fixed-supply tokens on Robinhood Chain — by typing a command.",

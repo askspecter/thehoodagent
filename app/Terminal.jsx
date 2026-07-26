@@ -12,6 +12,7 @@ import {
   waitForReceipt,
 } from "./wallet";
 import { fmtEth, fmtQty, fmtUsd, fmtUsdPrice, fullNumber, shortAddr, usdOr } from "./format";
+import { TERMINAL_EXAMPLES } from "./constants";
 
 /**
  * The trading terminal.
@@ -336,7 +337,7 @@ export default function Terminal({ network, user, onNavigate, onSignIn }) {
           <span className="cursor" />
         </h1>
         <p>
-          <code>buy me $5 sonic</code> in plain language. It quotes the fill first, and never sends
+          <code>buy me $5 nvda</code> in plain language. It quotes the fill first, and never sends
           from a typed line alone.
         </p>
       </section>
@@ -398,13 +399,32 @@ export default function Terminal({ network, user, onNavigate, onSignIn }) {
             value={input}
             onChange={(e) => setInput(e.target.value)}
             onKeyDown={onKeyDown}
-            placeholder="buy me $5 sonic"
+            placeholder="buy me $5 nvda"
             spellCheck={false}
             autoComplete="off"
             autoCapitalize="off"
             aria-label="Terminal command"
             disabled={busy}
           />
+        </div>
+
+        {/* One-tap starters. They fill the prompt rather than firing, so you can
+            edit the amount or ticker before it runs. */}
+        <div className="term-examples">
+          <span className="term-examples-label">try</span>
+          {TERMINAL_EXAMPLES.map((ex) => (
+            <button
+              key={ex}
+              type="button"
+              className="term-example"
+              onClick={() => {
+                setInput(ex);
+                inputRef.current?.focus();
+              }}
+            >
+              {ex}
+            </button>
+          ))}
         </div>
       </div>
 

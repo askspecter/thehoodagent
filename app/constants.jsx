@@ -35,12 +35,26 @@ export const EXAMPLE_TOKEN = "0x39dBED3a2bd333467115dE45665cC57F813C4571";
 
 /** Scrolling command tape. Every line is a command the terminal accepts. */
 export const TAPE = [
-  ["buy me $5 sonic", "resolves the ticker, converts the dollars"],
-  ["sell all sonic", "reads the balance, quotes the exit"],
-  ["price sonic", "live pool price · market cap"],
+  ["buy me $5 nvda", "resolves the ticker, converts the dollars"],
+  ["sell all tsla", "reads the balance, quotes the exit"],
+  ["price btc", "live pool price · market cap"],
   ["audit 0x…", "honeypot · owner-power scan"],
   ["portfolio", "every launch you hold, priced"],
-  ["create SONIC", "fixed supply · locked WETH pool"],
+  ["create MOON", "fixed supply · locked WETH pool"],
+];
+
+/**
+ * One-tap starters shown under the terminal prompt. Real coin/stock tickers, not
+ * a made-up token, so the examples read like something you would actually type.
+ * They resolve against the live feed — illustrative, not a promise a given
+ * ticker is listed.
+ */
+export const TERMINAL_EXAMPLES = [
+  "buy me $5 nvda",
+  "buy me $10 btc",
+  "sell all tsla",
+  "price doge",
+  "portfolio",
 ];
 
 export const STEPS = [
@@ -60,7 +74,7 @@ export const STEPS = [
 
 /** Where the app can take you. The tab strip and the mobile sheet both use it. */
 export const DESTINATIONS = [
-  { key: "terminal", label: "Terminal", href: "/terminal", hint: "buy me $5 sonic" },
+  { key: "terminal", label: "Terminal", href: "/terminal", hint: "buy me $5 nvda" },
   { key: "launches", label: "Launches", href: "/launches", hint: "the live feed" },
   { key: "create", label: "Create", href: "/create", hint: "deploy a token" },
   { key: "trade", label: "Trade", href: "/trade", hint: "the manual form" },
